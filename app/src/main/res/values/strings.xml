@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">mobapp</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string-array name="room_nodes">
+        <item>Bedroom</item>
+        <item>Kitchen</item>
+        <item>Hallway</item>
+        <item>WC</item>
+        <item>Living room</item>
+    </string-array>
+
+</resources>
