@@ -2,6 +2,8 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.CustomSurfaceView;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
+
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -10,12 +12,13 @@ import android.util.Log;
 
 import java.util.ArrayList;
 
-public class DeviceNode extends GraphNode {
+public class DeviceNode extends GraphNode implements GraphNodeListener {
 
 
 
 	public static final String TAG = "DeviceNode";
-	private String name;
+    private final Paint edgePaint;
+    private String name;
 	private Paint paint;
 	public float radius;
 	private RoomNode parent;
@@ -23,6 +26,8 @@ public class DeviceNode extends GraphNode {
 	public boolean state = false;
 	private Edge parentLine;
     private int alpha;
+    private boolean isPressed;
+    private int fingerId = -1;
 
     public DeviceNode(String name, RoomNode parent, Paint textPaint) {
 		this.name = name;
@@ -39,7 +44,7 @@ public class DeviceNode extends GraphNode {
 		textPaint.setColor(Color.BLACK);
 		textPaint.setTextAlign(Align.CENTER);
 
-        Paint edgePaint = new Paint();
+        edgePaint = new Paint();
         edgePaint.setAntiAlias(true);
         edgePaint.setColor(Color.GRAY);
         edgePaint.setStyle(Paint.Style.STROKE);
@@ -49,8 +54,11 @@ public class DeviceNode extends GraphNode {
 		useTheForce = true;
 		
 		parentLine = new Edge(edgePaint);
+        setGraphNodeListener(this);
 	}
-	
+
+
+
 	@Override
 	public void draw(Canvas canvas) {
 
@@ -80,10 +88,18 @@ public class DeviceNode extends GraphNode {
 
         CustomSurfaceView.placeInCircle(parent.getX(), parent.getY(), radius * 2, children);
 
+
 		super.update(tpf);
 	}
 
-	public boolean isInside(float x, float y) {
+    @Override
+    protected void onStartMove() {
+
+
+
+    }
+
+    public boolean containsPosition(float x, float y, float margin) {
 		
 		float distance = (float) Math.sqrt(Math.pow(x - ox, 2)
 				+ Math.pow(y - oy, 2));
@@ -154,8 +170,58 @@ public class DeviceNode extends GraphNode {
 
     }
 
-    private void setAlpha(int a) {
+    public void setAlpha(int a) {
         paint.setAlpha(a);
+        edgePaint.setAlpha(a);
         textPaint.setAlpha(a);
+    }
+
+    public boolean handleInteraction(float x, float y, int finger) {
+
+        if(!parent.isMoving){
+            if (containsPosition(x, y, 10)) {
+                if(fingerId == -1){
+                    fingerId = finger;
+                    Log.d(TAG, "FINGER DOWN "+finger);
+                    setActive(true);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+
+    @Override
+    public void onEvent(GraphNodeEvent graphNodeEvent, GraphNode graphNode) {
+
+
+        if (graphNodeEvent.getEvent() == GraphNodeEvent.CLICK) {
+            Log.d(TAG, this+" CLICK!");
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE) {
+            Log.d(TAG, this+" MOVE!");
+
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_START) {
+            Log.d(TAG, this+" MOVE_START!");
+
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_UP) {
+
+            Log.d(TAG, this+" MOVE UP!");
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.LONG_PRESS) {
+            Log.d(TAG, this+" LONG PRESS!");
+        }
+    }
+
+    public void handleNoInteraction(int finger) {
+
+        if(fingerId == finger){
+            fingerId = -1;
+            Log.d(TAG, "FINGER UP"+finger);
+            setActive(false);
+        }
+        else{
+            Log.d(TAG, "FINGER: "+fingerId);
+        }
+
     }
 }

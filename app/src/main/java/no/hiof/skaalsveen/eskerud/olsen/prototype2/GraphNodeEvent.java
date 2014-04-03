@@ -4,7 +4,7 @@ public class GraphNodeEvent {
 
 	public static final long LONG_PRESS_THRESHOLD = 500;
 	public static final long LONG_PRESS_OVERKILL = 10000;
-	public static final double MOVE_ON_CLICK_TRESHOLD = 10;
+	public static final double MOVE_ON_CLICK_THRESHOLD = 10;
 	
 	public static final int CLICK = 1;
 	public static final int LONG_PRESS = 2;

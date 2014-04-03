@@ -53,13 +53,15 @@ public abstract class GraphNode implements PhysicalObject {
 
             } else { // finger up
 
+
                 long deltaTime = System.currentTimeMillis() - pressedTimestamp;
                 double deltaPosition = Math.sqrt(Math.pow((x - pressedPositionX), 2)
                         + Math.pow((y - pressedPositionY), 2));
 
+                double moveOnClickThreshold = getRadius();//GraphNodeEvent.MOVE_ON_CLICK_THRESHOLD;
                 if (deltaTime > GraphNodeEvent.CLICK_THRESHOLD &&
                         deltaTime < GraphNodeEvent.LONG_PRESS_THRESHOLD
-                        && deltaPosition < GraphNodeEvent.MOVE_ON_CLICK_TRESHOLD && !isLongPressing) { // single
+                        && deltaPosition < moveOnClickThreshold && !isLongPressing) { // single
                     // click
                     graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
                     graphNodeListener.onEvent(graphNodeEvent, this);
@@ -73,11 +75,21 @@ public abstract class GraphNode implements PhysicalObject {
                 isMovable = false;
                 isMoving = false;
                 isLongPressing = false;
+                onFingerUp();
             }
 
         }
 
         isActive = b;
+    }
+
+
+    public void setGraphNodeListener(GraphNodeListener graphNodeListener) {
+        this.graphNodeListener = graphNodeListener;
+    }
+
+    protected void onFingerUp() {
+
     }
 
     public abstract void draw(Canvas canvas);
@@ -91,10 +103,13 @@ public abstract class GraphNode implements PhysicalObject {
             double deltaPosition = Math.sqrt(Math.pow((x - pressedPositionX), 2)
                     + Math.pow((y - pressedPositionY), 2));
 
-            if (deltaPosition > GraphNodeEvent.MOVE_ON_CLICK_TRESHOLD && !isLongPressing) {
+            if (outsideThreshold(deltaPosition) && !isLongPressing) {
+                onStartMove();
                 graphNodeEvent.setEvent((isMoving ? GraphNodeEvent.MOVE : GraphNodeEvent.MOVE_START));// move
                 graphNodeListener.onEvent(graphNodeEvent, this);
                 isMoving = true;
+                isMovable = true; // not really here
+
             } else if (deltaTime > GraphNodeEvent.LONG_PRESS_THRESHOLD && pressedTimestamp > 0) {
                 pressedTimestamp = 0;
                 isMoving = false;
@@ -111,21 +126,15 @@ public abstract class GraphNode implements PhysicalObject {
             ox += (x - ox) * tpf * 0.01;
             oy += (y - oy) * tpf * 0.01;
 
-            if(actionQueue.size() > 0){
-                if(getDistance(ox, x, oy, y) < getRadius()){
-                    runActionFromQueue();
-                }
-            }
-
-//            ox += (socialfx * 0.00001) * tpf;
-//            oy += (socialfy * 0.00001) * tpf;
-//
-//            socialfx = 0;
-//            socialfy = 0;
-
         }
 
     }
+
+    protected boolean outsideThreshold(double deltaPosition) {
+        return deltaPosition > GraphNodeEvent.MOVE_ON_CLICK_THRESHOLD;
+    }
+
+    protected abstract void onStartMove();
 
     private void runActionFromQueue() {
         Runnable action = actionQueue.get(0);

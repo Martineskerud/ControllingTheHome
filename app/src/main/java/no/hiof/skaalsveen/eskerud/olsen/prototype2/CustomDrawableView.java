@@ -127,6 +127,8 @@ public class CustomDrawableView extends CustomSurfaceView implements
 	public boolean onTouchEvent(MotionEvent event) {
 
 		int[] mask = new int[rooms];
+//		int[] map2 = new int[rooms];
+
         int roomsInMotion = 0;
 
 		if (event.getAction() == MotionEvent.ACTION_UP) {
@@ -180,6 +182,13 @@ public class CustomDrawableView extends CustomSurfaceView implements
 
 						}
 
+//                        if (node.childrenVisible && node.children.size() > 0) {
+//                            for (DeviceNode child : node.children) {
+//                                if(child.handleInteraction(fingerPositionsX[i], fingerPositionsY[i], pi)){
+//                                    map2[pi] = 1;
+//                                }
+//                            }
+//                        }
 					}
 				}
 			}
@@ -248,23 +257,25 @@ public class CustomDrawableView extends CustomSurfaceView implements
                 if(node.hasGhost()){
                     node.setGhost(!(fingersActive == 0));
                 }
+
+                if (node.childrenVisible && node.children.size() > 0) {
+                    for (DeviceNode child : node.children) {
+                        child.handleNoInteraction(i);
+                    }
+                }
 			}
 		}
 
-		if (roomNodes != null && roomNodes.size() > 0) {
-			for (RoomNode node : roomNodes) {
-				if (node.childrenVisible && node.children.size() > 0) {
-					for (DeviceNode child : node.children) {
-						if (child.isInside(event.getX(0), event.getY(0))) {
-							if (!childPress && roomsInMotion<1) {
-								childPress = true;
-								child.onClick();
-							}
-						}
-					}
-				}
-			}
-		}
+//        for (int i = 0; i < map2.length; i++) {
+//            if (map2[i] == 0) {
+//                RoomNode node = getFingerNode(i);
+//                if (node.childrenVisible && node.children.size() > 0) {
+//                    for (DeviceNode child : node.children) {
+//                        child.handleNoInteraction(i);
+//                    }
+//                }
+//            }
+//        }
 
 		return true;
 	}

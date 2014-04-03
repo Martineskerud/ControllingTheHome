@@ -1,6 +1,7 @@
 package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.CustomSurfaceView;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
 
 import android.graphics.Canvas;
@@ -15,6 +16,10 @@ import java.util.ArrayList;
 public class RoomNode extends ChildEnabledGraphNode {
 
 	public static final String TAG = "GraphNode";
+    private static final int LOW_ALPHA = 100;
+    private static final int HIGH_ALPHA = 255;
+    public static final int MAX_RADIUS = 75;
+    private static final double MOVE_FOCUSED_NODE_THRESHOLD = MAX_RADIUS;
     private final Paint ghostPaint;
     private Paint paint;
 	public float fx, fy;
@@ -34,6 +39,8 @@ public class RoomNode extends ChildEnabledGraphNode {
     private float startX, startY;
     private boolean ghost;
     private float ghostX, ghostY;
+    private int alpha = 255;
+    private int alternativeRadius = MAX_RADIUS;
 
     public RoomNode(String name, Paint textPaint) {
 		super();
@@ -52,7 +59,8 @@ public class RoomNode extends ChildEnabledGraphNode {
         ghostPaint.setColor(Color.GRAY);
         ghostPaint.setStyle(Paint.Style.STROKE);
         ghostPaint.setStrokeWidth(4.5f);
-        ghostPaint.setPathEffect(new DashPathEffect(new float[]{2, 4}, 0));
+        //ghostPaint.setPathEffect(new DashPathEffect(new float[]{10, 20}, 0));
+        ghostPaint.setAlpha(LOW_ALPHA);
 
 		this.textPaint = textPaint;
 		textPaint.setAntiAlias(true);
@@ -101,11 +109,20 @@ public class RoomNode extends ChildEnabledGraphNode {
         }
 	}
 
-	@Override
+    @Override
+    protected boolean outsideThreshold(double deltaPosition) {
+        if(childrenVisible){
+//            ghost = true;
+            alpha = 0;
+        }
+        return super.outsideThreshold(deltaPosition);
+    }
+
+    @Override
 	public void draw(Canvas canvas) {
 
-
-		canvas.drawCircle(ox, oy, radius, (ghost ? ghostPaint : paint));
+//      ghostPaint.setAlpha(0);
+//		canvas.drawCircle(ox, oy, radius, (ghost ? ghostPaint : paint));
 
         float tx, ty;
 
@@ -115,6 +132,7 @@ public class RoomNode extends ChildEnabledGraphNode {
             ty = ghostY;
         }
         else{
+            canvas.drawCircle(ox, oy, radius, paint);
             tx = ox;
             ty = oy;
         }
@@ -126,6 +144,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 
 		if (childrenVisible && children.size() > 0) {
 			for (DeviceNode child : children) {
+                child.setAlpha(alpha);
 				child.draw(canvas);
 			}
 		}
@@ -140,7 +159,8 @@ public class RoomNode extends ChildEnabledGraphNode {
 		super.update(tpf);
 
 
-        radius = (childrenVisible ? 75 : minimizedRadius);
+
+        radius = (childrenVisible ? alternativeRadius : minimizedRadius);
 
 		if (!isActive) {
 			
@@ -205,6 +225,12 @@ public class RoomNode extends ChildEnabledGraphNode {
 	}
 
     @Override
+    protected void onStartMove() {
+        resetAlpha();
+        //forceSet(ghostX, ghostY);
+    }
+
+    @Override
     public void setPlacement(float[] po) {
         if(po != null && po.length > 1) {
 
@@ -230,9 +256,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 		socialfy = 0;
 	}
 
-	public void setGraphNodeListener(GraphNodeListener graphNodeListener) {
-		this.graphNodeListener = graphNodeListener;
-	}
+
 
 	public boolean trySet(float x, float y, CustomSurfaceView customDrawableView) {
 
@@ -241,44 +265,48 @@ public class RoomNode extends ChildEnabledGraphNode {
 		
 		
 		//	Log.d(TAG, "distance = "+ distance+ "    ("+x+","+y+")("+ox+""+oy+")");
-		
-		if (distance < radius + extra_margin || isMovable) {
 
-            if(!isMovable){
-                startX = x;
-                startY = y;
+        double threshold = MOVE_FOCUSED_NODE_THRESHOLD;//getRadius() + extra_margin;
+        if (distance < threshold || isMovable) {
+
+            if(isMovable){
+
+                ghost = false;
+                alpha = HIGH_ALPHA;
             }
-            isMovable = true;
+            else if(childrenVisible){
+                ghostX = x;
+                ghostY = y;
+                ghost = true;
 
-			//forceSet(x, y);
-            if(!childrenVisible){
+                float distance2 = (float) Math.sqrt(Math.pow(x - pressedPositionX, 2)
+                        + Math.pow(y - pressedPositionY, 2));
+                alpha = (int)((255/ threshold) * (threshold - distance2));
 
-                moveTo(x,y);
-                return true;
+                //alternativeRadius = minimizedRadius + (int) ((MAX_RADIUS-minimizedRadius)/threshold * (threshold - distance2));
+
+
             }
-            else{
+            moveTo(x,y);
 
-                float distance2 = (float) Math.sqrt(Math.pow(x - startX, 2)
-                        + Math.pow(y - startY, 2));
-
-                if(distance2 > radius + extra_margin){
-                    ghost = false;
-                    moveTo(x,y);
-                    return true;
-                }
-                else{
-                    ghost = true;
-                    ghostX = x;
-                    ghostY = y;
-                }
-            }
-
+            return true;
 		}
 
 		return false;
 	}
 
-	public void forceSet(float x, float y) { // used for moving nodes by hand & zooming
+    @Override
+    protected void onFingerUp() {
+
+        alternativeRadius = MAX_RADIUS;
+        resetAlpha();
+    }
+
+    private void resetAlpha() {
+        alpha = 255;
+    }
+
+    public void forceSet(float x, float y) { // used for moving nodes by hand & zooming
         setX(x);
         setY(y);
 	}
@@ -467,6 +495,9 @@ public class RoomNode extends ChildEnabledGraphNode {
 
     public void setGhost(boolean ghost) {
         this.ghost = ghost;
+        if(!ghost){
+            resetAlpha();
+        }
     }
 
     public boolean hasGhost() {
