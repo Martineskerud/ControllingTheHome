@@ -1,12 +1,7 @@
 package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.CustomSurfaceView;
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
-
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
 import android.util.Log;
@@ -21,18 +16,13 @@ public class RoomNode extends ChildEnabledGraphNode {
     public static final int MAX_RADIUS = 75;
     private static final double MOVE_FOCUSED_NODE_THRESHOLD = MAX_RADIUS;
     private final Paint ghostPaint;
+    private final int[] childrenTouchMap;
     private Paint paint;
 	public float fx, fy;
 	private Paint textPaint;
-	private String name;
-	private double distance;
 
 	private float extra_margin = 20;
 
-	private float screenCenterFx;
-	private float screenCenterFy;
-    private float screenCenterX;
-    private float screenCenterY;
     private long childrenVisibleTime;
     private int minimizedRadius = 50;
     private int requestUp;
@@ -41,9 +31,11 @@ public class RoomNode extends ChildEnabledGraphNode {
     private float ghostX, ghostY;
     private int alpha = 255;
     private int alternativeRadius = MAX_RADIUS;
+    private int activeChildren2;
+    private DeviceNode hoverChild;
 
     public RoomNode(String name, Paint textPaint) {
-		super();
+		super(name);
 
 		this.ox = 0;
 		this.oy = 0;
@@ -74,8 +66,6 @@ public class RoomNode extends ChildEnabledGraphNode {
 			textPaint.setTextSize(textSize--);
 
 		} while (textPaint.measureText(name) > (radius - margin) * 2);
-
-		this.name = name;
 		
 		if(name.equals("Living room")){
             String[] devices = new String[]{"Light", "Fireplace", "TV"};
@@ -107,6 +97,8 @@ public class RoomNode extends ChildEnabledGraphNode {
                 children.add(new DeviceNode(dev, this, textPaint));
             }
         }
+
+        childrenTouchMap = new int[children.size()];
 	}
 
     @Override
@@ -139,8 +131,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 
         textPaint.setColor((minimized ? Color.BLUE : Color.RED));
 
-
-		canvas.drawText(name, tx, ty + 10.5f, textPaint);
+		canvas.drawText((childrenVisible ? "C: "+activeChildren2 : name), tx, ty + 10.5f, textPaint);
 
 		if (childrenVisible && children.size() > 0) {
 			for (DeviceNode child : children) {
@@ -158,36 +149,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 	public void update(long tpf) {
 		super.update(tpf);
 
-
-
         radius = (childrenVisible ? alternativeRadius : minimizedRadius);
-
-		if (!isActive) {
-			
-//			oy += (fy * 0.1) * tpf;
-//			ox += (screenCenterFx * 0.000001) * tpf;
-//
-//			if(!minimized){
-//				ox += (fx * 0.1) * tpf;
-//				oy += (screenCenterFy * 0.000001) * tpf;
-//			}
-//
-//			fx = 0;
-//			fy = 0;
-//
-//			screenCenterFx = 0;
-//			screenCenterFy = 0;
-
-		}
-		// follow fingers smooth
-		else if (isMoving) {
-
-			float dx = x - ox;
-			float dy = y - oy;
-
-			ox += (dx / 20) * tpf;
-			oy += (dy / 20) * tpf;
-		}
 
 		paint.setColor(isActive ? Color.RED : Color.BLUE);
         childrenVisibleTime+=tpf;
@@ -208,21 +170,19 @@ public class RoomNode extends ChildEnabledGraphNode {
                 }
             }
 
-//            if(childrenVisible && getRadius() < 75){
-//                radius += (radius * 0.005f * tpf);
-//                if(radius > 75){
-//                    radius = 75;
-//                }
-//            }
-//            else if(!childrenVisible && getRadius() > 50){
-//                radius -= (radius * 0.005f * tpf);
-//                if(radius < 50){
-//                    radius = 50;
-//                }
-//            }
+            placeInCircle(getX(), getY(), getChildRadius(), getChildren());
 		}
 
+        activeChildren2 = 0;
+        for (DeviceNode child : children) {
+            activeChildren2 += (child.isMoving ? 1 : 0);
+        }
+
 	}
+
+    public float getChildRadius() {
+        return radius * 1.5f;
+    }
 
     @Override
     protected void onStartMove() {
@@ -243,10 +203,7 @@ public class RoomNode extends ChildEnabledGraphNode {
         }
     }
 
-    public double getDistanceTo(float x2, float y2) {
-		distance = Math.sqrt(Math.pow(ox - x2, 2) + Math.pow(oy - y2, 2));
-		return distance;
-	}
+
 
 	
 
@@ -258,12 +215,16 @@ public class RoomNode extends ChildEnabledGraphNode {
 
 
 
-	public boolean trySet(float x, float y, CustomSurfaceView customDrawableView) {
+	public boolean trySet(float x, float y) {
 
+        if(activeChildren2 > 0){
+            return false;
+
+        }
 		float distance = (float) Math.sqrt(Math.pow(x - ox, 2)
 				+ Math.pow(y - oy, 2));
 		
-		
+
 		//	Log.d(TAG, "distance = "+ distance+ "    ("+x+","+y+")("+ox+""+oy+")");
 
         double threshold = MOVE_FOCUSED_NODE_THRESHOLD;//getRadius() + extra_margin;
@@ -348,30 +309,8 @@ public class RoomNode extends ChildEnabledGraphNode {
 
 	public void applyCenterScreenForce(int width, int height) {
 
-//        if(screenCenterX == 0 && screenCenterY == 0){
-//            screenCenterX = width/2;
-//            screenCenterY = (minimized ? height-radius*2 : height/2);
-//        }
-//
-//		float distance = getDistance(screenCenterX,ox,screenCenterY,oy);
-//
-//		float cx = (screenCenterX - ox) * (screenCenterX - distance);
-//		float cy = (screenCenterY - oy) * (screenCenterY - distance);
-//
-//		screenCenterFx = cx;
-//		screenCenterFy = cy;
 	}
 
-
-
-    public void applyMinimizeForce(int height) {
-		
-		float distance = (height - oy);
-		
-		if(distance > radius){
-			screenCenterFy += 100;
-		}
-	}
 
     public void toggleMinimized() {
         minimized = !minimized;
@@ -401,43 +340,6 @@ public class RoomNode extends ChildEnabledGraphNode {
         }
 
         moveX(x1);
-
-//        for(int u = 0; u < 10; u++){
-//
-//            int i=0;
-//            int minimizedRadius1 = getMinimizedRadius();
-//            for(RoomNode node : roomNodes){
-//
-//                if(!node.equals(this)) {
-//                    float rr = minimizedRadius1 + node.getMinimizedRadius();
-//                    float dist = getDistance(x1, node.getX());
-//                    if (dist < rr) {
-//                        i++;
-//                    }
-//                }
-//            }
-//            if(i < 1) {
-//                Log.d(TAG, this +" found spot! ");
-//                moveX(x1);
-//                return;
-//            }
-//
-//            float w2 = (width / 2);
-//            float wr = w2 - minimizedRadius1;
-//            x1 = (float) (Math.random() * wr);
-//
-//
-//            if(w2 < getX()){
-//                x1 += w2 - minimizedRadius1;
-//            }
-//            else{
-//                x1 += minimizedRadius1;
-//            }
-//
-//        }
-//
-//        Log.w(TAG, "Did not find spot... using old x.");
-//        moveX(getX());
 
     }
 
@@ -473,13 +375,6 @@ public class RoomNode extends ChildEnabledGraphNode {
     }
 
 
-    public boolean isActive() {
-        return isActive;
-    }
-
-    public double getDistanceTo(RoomNode roomNode) {
-        return getDistanceTo(roomNode.getX(), roomNode.getY());
-    }
 
     public int getMinimizedRadius() {
         return minimizedRadius;
@@ -503,4 +398,54 @@ public class RoomNode extends ChildEnabledGraphNode {
     public boolean hasGhost() {
         return ghost;
     }
+
+    public void handleChildrenNotActive() {
+        if (childrenVisible && children.size() > 0) {
+
+            for(DeviceNode child : children){
+                if(child.isHoveredOver()){
+                    hoverChild = child;
+
+                }
+            }
+
+            for (DeviceNode child : children) {
+                child.handleNoInteraction(hoverChild);
+            }
+        }
+    }
+
+    public boolean manageChildren(float x, float y, int finger) {
+        int activeChildren = 0;
+
+
+        if (childrenVisible && children.size() > 0) {
+
+            boolean fingerInUse = false;
+            for(DeviceNode child : children){
+                if (child.getFingerId() == finger){
+                    fingerInUse = true;
+                    break;
+                }
+            }
+
+            int i = 0;
+            for (DeviceNode child : children) {
+
+                if(childrenTouchMap[i] == 0 && child.handleInteraction(x, y, finger, fingerInUse, activeChildren2)){
+                    activeChildren++;
+                    childrenTouchMap[i] = finger;
+
+                } else if (childrenTouchMap[i] != 0){
+                    childrenTouchMap[i] = 0;
+                }
+                i++;
+            }
+
+            return (activeChildren > 0);
+        }
+
+        return false;
+    }
+
 }

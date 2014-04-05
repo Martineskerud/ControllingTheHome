@@ -1,6 +1,9 @@
 package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -12,6 +15,9 @@ import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.PhysicalObject;
 public abstract class GraphNode implements PhysicalObject {
 
     private static final String TAG = "GraphNode";
+    private final Paint debugPaint;
+    private final int debugTextSize;
+    protected final String name;
     protected boolean isActive;
     protected GraphNodeListener graphNodeListener;
     protected GraphNodeEvent graphNodeEvent;
@@ -34,11 +40,61 @@ public abstract class GraphNode implements PhysicalObject {
     protected double socialfy = 0;
     public boolean minimized = true;
     private ArrayList<Runnable> actionQueue;
+    protected boolean debugPosition;
+    private ArrayList<Connection> connections;
 
-    public GraphNode() {
-
+    public GraphNode(String name) {
+        this.name = name;
         graphNodeEvent = new GraphNodeEvent();
         actionQueue = new ArrayList<Runnable>();
+
+        debugPaint = new Paint();
+        debugPaint.setAntiAlias(true);
+        debugPaint.setColor(Color.BLACK);
+        debugTextSize = 20;
+        debugPaint.setTextSize(debugTextSize);
+
+        connections = new ArrayList<Connection>();
+    }
+
+    private class Connection{
+
+        private final GraphNode node;
+        private final BezierCurve curve;
+
+        public Connection(GraphNode node, BezierCurve curve){
+            this.node = node;
+            this.curve = curve;
+        }
+
+        public Connection(DeviceNode node) {
+            this.node = node;
+            this.curve = new BezierCurve(debugPaint);
+        }
+
+        public GraphNode getNode() {
+            return node;
+        }
+
+        public BezierCurve getCurve() {
+            return curve;
+        }
+
+        public void draw(Canvas canvas) {
+            if(curve != null && node != null){
+                curve.draw(canvas);
+            }
+        }
+
+        public void update(long tpf) {
+            if(curve != null && node != null){
+                if(GraphNode.this instanceof ChildNode){
+                    if(node instanceof ChildNode){
+                        curve.update((ChildNode)GraphNode.this, (ChildNode)node);
+                    }
+                }
+            }
+        }
     }
 
     public void setActive(boolean b) {
@@ -83,6 +139,9 @@ public abstract class GraphNode implements PhysicalObject {
         isActive = b;
     }
 
+    public boolean isActive() {
+        return isActive;
+    }
 
     public void setGraphNodeListener(GraphNodeListener graphNodeListener) {
         this.graphNodeListener = graphNodeListener;
@@ -92,7 +151,27 @@ public abstract class GraphNode implements PhysicalObject {
 
     }
 
-    public abstract void draw(Canvas canvas);
+    public void draw(Canvas canvas){
+
+        if(debugPosition) {
+            canvas.drawText("ox: " + Math.floor(ox), ox + radius, oy - 2 * debugTextSize, debugPaint);
+            canvas.drawText("oy: " + Math.floor(oy), ox + radius, oy - debugTextSize, debugPaint);
+            canvas.drawText("x: " + Math.floor(x), ox + radius, oy + debugTextSize, debugPaint);
+            canvas.drawText("y: " + Math.floor(y), ox + radius, oy + 2 * debugTextSize, debugPaint);
+        }
+
+        drawConnections(canvas);
+    }
+
+    private void drawConnections(Canvas canvas) {
+        if(connections != null && connections.size() > 0){
+            for(Connection connection: connections){
+
+                connection.draw(canvas);
+            }
+        }
+    }
+
 
     public void update(long tpf) {
 
@@ -127,7 +206,26 @@ public abstract class GraphNode implements PhysicalObject {
             oy += (y - oy) * tpf * 0.01;
 
         }
+        // follow fingers smooth
+        else if (isMoving) {
 
+            float dx = x - ox;
+            float dy = y - oy;
+
+            ox += (dx / 20) * tpf;
+            oy += (dy / 20) * tpf;
+        }
+
+        updateConnections(tpf);
+    }
+
+    private void updateConnections(long tpf) {
+        if(connections != null && connections.size() > 0){
+            for(Connection connection: connections){
+
+                connection.update(tpf);
+            }
+        }
     }
 
     protected boolean outsideThreshold(double deltaPosition) {
@@ -148,6 +246,14 @@ public abstract class GraphNode implements PhysicalObject {
     protected float getDistance(float x1, float x2, float y1, float y2) {
         return (float) Math.sqrt(Math.pow(x1 - x2, 2)
                 + Math.pow(y1 - y2, 2));
+    }
+
+    public double getDistanceTo(GraphNode node) {
+        return getDistanceTo(node.getX(), node.getY());
+    }
+
+    public double getDistanceTo(float x2, float y2) {
+        return Math.sqrt(Math.pow(getX() - x2, 2) + Math.pow(getY() - y2, 2));
     }
 
     public void makeDeltaForce(RoomNode n2, long tps) {
@@ -235,5 +341,37 @@ public abstract class GraphNode implements PhysicalObject {
         this.y = y;
     }
 
+    public static void placeInCircle(float x, float y, float radius, ArrayList<? extends GraphNode> nodes) {
 
+        if(nodes != null && nodes.size() > 0) {
+
+            float step = (float) ((Math.PI * 2) / nodes.size());
+            float s = 0;
+
+            for (GraphNode node : nodes) {
+
+                if(!node.isActive){
+                    float radius2 = radius + node.getRadius();
+
+                    float rx = (float) (radius2 * Math.sin(s));
+                    float ry = (float) (radius2 * Math.cos(s));
+
+                    node.setX(x + rx);
+                    node.setY(y + ry);
+                }
+
+                s += step;
+            }
+        }
+    }
+
+    public boolean collidesWith(GraphNode node) {
+        return(node != null && getDistanceTo(node) < getRadius() + node.getRadius());
+    }
+
+    public void addConnection(DeviceNode node) {
+        if(!this.equals(node)) {
+            connections.add(new Connection(node));
+        }
+    }
 }

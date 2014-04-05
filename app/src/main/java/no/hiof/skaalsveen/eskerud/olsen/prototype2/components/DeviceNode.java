@@ -12,26 +12,24 @@ import android.util.Log;
 
 import java.util.ArrayList;
 
-public class DeviceNode extends GraphNode implements GraphNodeListener {
-
-
+public class DeviceNode extends ChildNode implements GraphNodeListener {
 
 	public static final String TAG = "DeviceNode";
     private final Paint edgePaint;
-    private String name;
 	private Paint paint;
 	public float radius;
-	private RoomNode parent;
 	private Paint textPaint;
 	public boolean state = false;
 	private Edge parentLine;
     private int alpha;
-    private boolean isPressed;
+    private boolean isPressed = false;
     private int fingerId = -1;
+    private boolean isHoveredOverWithOtherNode = false;
+    private DeviceNode hoverChild;
 
     public DeviceNode(String name, RoomNode parent, Paint textPaint) {
-		this.name = name;
-		this.parent = parent;
+        super(name, parent);
+
 		
 		paint = new Paint();
 		paint.setAntiAlias(true);
@@ -58,13 +56,27 @@ public class DeviceNode extends GraphNode implements GraphNodeListener {
 	}
 
 
+    @Override
+    public float getRadius() {
+        return super.getRadius()+ (isHoveredOverWithOtherNode ? 10 : 0);
+    }
 
-	@Override
+    @Override
 	public void draw(Canvas canvas) {
 
+        paint.setColor((isPressed ? (isMoving ? Color.GREEN : Color.RED) : (isHoveredOverWithOtherNode ? Color.YELLOW : Color.BLUE)));
 		paint.setStyle((state ? Paint.Style.FILL_AND_STROKE : Paint.Style.STROKE));
-		canvas.drawCircle(ox, oy, radius, paint);
+		canvas.drawCircle(ox, oy, getRadius() , paint);
 
+        if(!isHoveredOverWithOtherNode){
+            drawText(canvas);
+        }
+
+		parentLine.draw(canvas);
+        super.draw(canvas);
+	}
+
+    private void drawText(Canvas canvas) {
         String[] lines = name.split("\n");
         int l2 = lines.length/2;
         float textHeight = 21f;
@@ -74,22 +86,20 @@ public class DeviceNode extends GraphNode implements GraphNodeListener {
             canvas.drawText(line, ox, offset, textPaint);
             offset += textHeight;
         }
+    }
 
-		parentLine.draw(canvas);
-	}
-	
-	@Override
+    @Override
 	public void update(long tpf) {
 		
 		//ox = parent.ox + 100;
 		//oy = parent.oy + 100;
 
-        ArrayList<DeviceNode> children = parent.getChildren();
-
-        CustomSurfaceView.placeInCircle(parent.getX(), parent.getY(), radius * 2, children);
+//        ArrayList<DeviceNode> children = parent.getChildren();
+//        CustomSurfaceView.placeInCircle(parent.getX(), parent.getY(), radius * 2, children);
 
 
 		super.update(tpf);
+        updateParentLine(getParent());
 	}
 
     @Override
@@ -111,13 +121,13 @@ public class DeviceNode extends GraphNode implements GraphNodeListener {
 	public void makeDeltaForce(RoomNode n2, long tps) {
 		super.makeDeltaForce(n2, tps);
 		
-		float r = (float) Math.sqrt(Math.pow(parent.ox - ox, 2)
-				+ Math.pow(parent.oy - oy, 2));
+		float r = (float) Math.sqrt(Math.pow(getParent().ox - ox, 2)
+				+ Math.pow(getParent().oy - oy, 2));
 
 		float target = 200;
 
-		float cx = (parent.ox - ox);
-		float cy = (parent.oy - oy);
+		float cx = (getParent().ox - ox);
+		float cy = (getParent().oy - oy);
 
 		socialfx += (cx * (r - target)) * 0.3f;
 		socialfy += (cy * (r - target)) * 0.3f;
@@ -134,8 +144,8 @@ public class DeviceNode extends GraphNode implements GraphNodeListener {
     public void onClick() {
 		state = !state;
 		
-		parent.graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
-		parent.graphNodeListener.onEvent(parent.graphNodeEvent, this);
+		getParent().graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
+		getParent().graphNodeListener.onEvent(getParent().graphNodeEvent, this);
 		
 	}
 
@@ -176,19 +186,30 @@ public class DeviceNode extends GraphNode implements GraphNodeListener {
         textPaint.setAlpha(a);
     }
 
-    public boolean handleInteraction(float x, float y, int finger) {
+    public boolean handleInteraction(float x, float y, int finger, boolean fingerInUse, int siblingsMoving) {
 
-        if(!parent.isMoving){
-            if (containsPosition(x, y, 10)) {
-                if(fingerId == -1){
-                    fingerId = finger;
-                    Log.d(TAG, "FINGER DOWN "+finger);
-                    setActive(true);
-                    return true;
+        if(!getParent().isMoving){
+
+            if (!isPressed) {
+                if (containsPosition(x, y, 10)){
+                    if(!fingerInUse) {
+                        fingerId = finger;
+                        isPressed = true;
+                        setActive(true);
+                    }
+                    else{
+                        isHoveredOverWithOtherNode = true;
+                    }
                 }
+                else{
+                    isHoveredOverWithOtherNode = false;
+                }
+            } else if(fingerId == finger){
+                moveTo(x, y);
             }
+
         }
-        return false;
+        return isPressed;
     }
 
 
@@ -207,21 +228,50 @@ public class DeviceNode extends GraphNode implements GraphNodeListener {
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_UP) {
 
             Log.d(TAG, this+" MOVE UP!");
+
+            if(hoverChild != null){
+                if(collidesWith(hoverChild)) {
+                    Log.d(TAG, "Dropped " + this + " in " + hoverChild);
+
+                    graphNodeEvent.setEvent(GraphNodeEvent.DROPPED);
+                    graphNodeListener.onEvent(graphNodeEvent, hoverChild);
+                }
+            }
+            else{
+                Log.d(TAG, "hoverChild is null!");
+            }
+
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.LONG_PRESS) {
             Log.d(TAG, this+" LONG PRESS!");
+            debugPosition = !debugPosition;
+
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.DROPPED) {
+            Log.d(TAG, this+" DROPPED!");
+
+            graphNode.addConnection(this);
         }
     }
 
-    public void handleNoInteraction(int finger) {
+    public void handleNoInteraction(DeviceNode hoverChild) {
 
-        if(fingerId == finger){
+        if(isPressed){
+            isPressed = false;
             fingerId = -1;
-            Log.d(TAG, "FINGER UP"+finger);
+            this.hoverChild = hoverChild;
             setActive(false);
+
         }
-        else{
-            Log.d(TAG, "FINGER: "+fingerId);
-        }
+        isHoveredOverWithOtherNode = false;
 
     }
+
+    public int getFingerId() {
+        return fingerId;
+    }
+
+    public boolean isHoveredOver() {
+        return isHoveredOverWithOtherNode;
+    }
+
+
 }

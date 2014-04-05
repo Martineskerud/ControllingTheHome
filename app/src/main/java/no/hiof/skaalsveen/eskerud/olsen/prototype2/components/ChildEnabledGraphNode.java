@@ -8,7 +8,11 @@ public abstract class ChildEnabledGraphNode extends GraphNode {
 	public boolean childrenVisible = false;
 	public ArrayList<DeviceNode> children = new ArrayList<DeviceNode>();
 
-	public void makeDeltaForce(RoomNode n2, long tps) {
+    public ChildEnabledGraphNode(String name) {
+        super(name);
+    }
+
+    public void makeDeltaForce(RoomNode n2, long tps) {
 		super.makeDeltaForce(n2, tps);
 		
 		

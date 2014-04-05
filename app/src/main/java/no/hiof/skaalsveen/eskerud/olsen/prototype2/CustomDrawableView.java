@@ -127,7 +127,7 @@ public class CustomDrawableView extends CustomSurfaceView implements
 	public boolean onTouchEvent(MotionEvent event) {
 
 		int[] mask = new int[rooms];
-//		int[] map2 = new int[rooms];
+        //ArrayList<GraphNode> map2 = new ArrayList<GraphNode>();
 
         int roomsInMotion = 0;
 
@@ -169,26 +169,29 @@ public class CustomDrawableView extends CustomSurfaceView implements
 								fingerPositionsX, fingerPositionsY);
 
                         boolean b1 = !gestureMode && fingersInside < 2;
-						if (b1 && node.trySet(event.getX(i), event.getY(i), this)) {
+						if (b1 && node.trySet(event.getX(i), event.getY(i))) {
 						    //click, move, press
 							node.setActive(true);
 							mask[pi] = 1;
                             roomsInMotion++;
-						} else {
+						} else if(b1 && node.manageChildren(event.getX(i), event.getY(i), pi)){
+                            mask[pi] = 1;
+                        }
+                        else {
 
 							gesturePositionsSumX += fingerPositionsX[i];
 							gesturePositionsSumY += fingerPositionsY[i];
 							gestureFingers++;
 
-						}
-
-//                        if (node.childrenVisible && node.children.size() > 0) {
-//                            for (DeviceNode child : node.children) {
-//                                if(child.handleInteraction(fingerPositionsX[i], fingerPositionsY[i], pi)){
-//                                    map2[pi] = 1;
+//                            if (node.childrenVisible && node.children.size() > 0) {
+//                                for (DeviceNode child : node.children) {
+//                                    if(child.handleInteraction(fingerPositionsX[i], fingerPositionsY[i], i)){
+//                                        map2.add(child);
+//                                    }
 //                                }
 //                            }
-//                        }
+
+						}
 					}
 				}
 			}
@@ -258,24 +261,19 @@ public class CustomDrawableView extends CustomSurfaceView implements
                     node.setGhost(!(fingersActive == 0));
                 }
 
-                if (node.childrenVisible && node.children.size() > 0) {
-                    for (DeviceNode child : node.children) {
-                        child.handleNoInteraction(i);
-                    }
-                }
+                node.handleChildrenNotActive();
 			}
 		}
 
-//        for (int i = 0; i < map2.length; i++) {
-//            if (map2[i] == 0) {
-//                RoomNode node = getFingerNode(i);
-//                if (node.childrenVisible && node.children.size() > 0) {
-//                    for (DeviceNode child : node.children) {
-//                        child.handleNoInteraction(i);
-//                    }
+//        for(RoomNode roomNode : roomNodes){
+//            for(DeviceNode child : roomNode.getChildren()){
+//                if(!map2.contains(child)){
+//                    child.handleNoInteraction();
 //                }
 //            }
 //        }
+//        map2.clear();
+
 
 		return true;
 	}
@@ -360,10 +358,6 @@ public class CustomDrawableView extends CustomSurfaceView implements
 				if (!node.equals(n2)) {
 					node.makeDeltaForce(n2, tpf);
 				}
-			}
-
-			if (node.minimized) {
-				node.applyMinimizeForce(height);
 			}
 
             if (slotManager != null && !slotManager.contains(node) && graphChanged) {

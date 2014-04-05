@@ -15,6 +15,7 @@ public class GraphNodeEvent {
 	public static final long CLICK_THRESHOLD = 50;
     public static final int MOVE_START = 6;
     public static final int MOVE_UP = 7;
+    public static final int DROPPED = 8;
 
     private int action;
 
