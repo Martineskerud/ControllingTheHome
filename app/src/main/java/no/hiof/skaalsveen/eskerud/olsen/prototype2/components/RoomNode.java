@@ -8,7 +8,9 @@ import android.util.Log;
 
 import java.util.ArrayList;
 
-public class RoomNode extends ChildEnabledGraphNode {
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
+
+public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 
 	public static final String TAG = "GraphNode";
     private static final int LOW_ALPHA = 100;
@@ -16,7 +18,7 @@ public class RoomNode extends ChildEnabledGraphNode {
     public static final int MAX_RADIUS = 75;
     private static final double MOVE_FOCUSED_NODE_THRESHOLD = MAX_RADIUS;
     private final Paint ghostPaint;
-    private final int[] childrenTouchMap;
+    private int[] childrenTouchMap;
     private Paint paint;
 	public float fx, fy;
 	private Paint textPaint;
@@ -33,9 +35,11 @@ public class RoomNode extends ChildEnabledGraphNode {
     private int alternativeRadius = MAX_RADIUS;
     private int activeChildren2;
     private DeviceNode hoverChild;
+    private int d1 = 0;
+    private boolean interactionDisabled;
 
-    public RoomNode(String name, Paint textPaint) {
-		super(name);
+    public RoomNode(String name, Paint textPaint, HapticDevice hapticDevice) {
+		super(name, hapticDevice);
 
 		this.ox = 0;
 		this.oy = 0;
@@ -131,7 +135,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 
         textPaint.setColor((minimized ? Color.BLUE : Color.RED));
 
-		canvas.drawText((childrenVisible ? "C: "+activeChildren2 : name), tx, ty + 10.5f, textPaint);
+		canvas.drawText(name, tx, ty + 10.5f, textPaint);
 
 		if (childrenVisible && children.size() > 0) {
 			for (DeviceNode child : children) {
@@ -159,6 +163,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 
             if(childrenVisibleTime < 1000 || childrenVisible) {
 
+                clearConnections();
                 for (DeviceNode child : children) {
 
                     if (childrenVisibleTime < 1000) {
@@ -180,6 +185,8 @@ public class RoomNode extends ChildEnabledGraphNode {
 
 	}
 
+
+
     public float getChildRadius() {
         return radius * 1.5f;
     }
@@ -199,6 +206,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 //                ox += (ox - po[0]) * 0.001f;
 //                oy += (oy - po[1]) * 0.001f;
 //            }
+
             moveTo(po[0], po[1]);
         }
     }
@@ -217,16 +225,18 @@ public class RoomNode extends ChildEnabledGraphNode {
 
 	public boolean trySet(float x, float y) {
 
-        if(activeChildren2 > 0){
+        d1 = 0;
+        if(activeChildren2 > 0 || interactionDisabled){
             return false;
 
         }
+
 		float distance = (float) Math.sqrt(Math.pow(x - ox, 2)
 				+ Math.pow(y - oy, 2));
 		
 
 		//	Log.d(TAG, "distance = "+ distance+ "    ("+x+","+y+")("+ox+""+oy+")");
-
+        saveCursor(x,y);
         double threshold = MOVE_FOCUSED_NODE_THRESHOLD;//getRadius() + extra_margin;
         if (distance < threshold || isMovable) {
 
@@ -234,6 +244,8 @@ public class RoomNode extends ChildEnabledGraphNode {
 
                 ghost = false;
                 alpha = HIGH_ALPHA;
+//                childrenVisible = false;
+                moveTo(x,y);
             }
             else if(childrenVisible){
                 ghostX = x;
@@ -248,13 +260,17 @@ public class RoomNode extends ChildEnabledGraphNode {
 
 
             }
-            moveTo(x,y);
 
+            //
             return true;
 		}
 
+
 		return false;
 	}
+
+
+
 
     @Override
     protected void onFingerUp() {
@@ -399,53 +415,66 @@ public class RoomNode extends ChildEnabledGraphNode {
         return ghost;
     }
 
-    public void handleChildrenNotActive() {
-        if (childrenVisible && children.size() > 0) {
+//    public void handleChildrenNotActive() {
+//        if (childrenVisible && children.size() > 0) {
+//
+//            for(DeviceNode child : children){
+//                if(child.isHoveredOver()){
+//                    hoverChild = child;
+//
+//                }
+//            }
+//
+//            for (DeviceNode child : children) {
+//                child.handleNoInteraction(hoverChild);
+//            }
+//        }
+//    }
 
-            for(DeviceNode child : children){
-                if(child.isHoveredOver()){
-                    hoverChild = child;
+//    public boolean manageChildren(float x, float y, int finger) {
+//        int activeChildren = 0;
+//        d1++;
+//
+//        if (childrenVisible && children.size() > 0) {
+//
+//            boolean fingerInUse = false;
+//            for(DeviceNode child : children){
+//                if (child.getFingerId() == finger){
+//                    fingerInUse = true;
+//                    break;
+//                }
+//            }
+//
+//            int i = 0;
+//            for (DeviceNode child : children) {
+//
+//                if(childrenTouchMap[i] == 0 && child.handleInteraction(x, y, finger, fingerInUse, activeChildren2)){
+//                    activeChildren++;
+//                    childrenTouchMap[i] = finger;
+//
+//                } else if (childrenTouchMap[i] != 0){
+//                    childrenTouchMap[i] = 0;
+//                }
+//                i++;
+//            }
+//
+//            return (activeChildren > 0);
+//        }
+//
+//        return false;
+//    }
 
-                }
-            }
-
-            for (DeviceNode child : children) {
-                child.handleNoInteraction(hoverChild);
-            }
-        }
+    public void setRoomConnection(RoomNode parentB, ChildNode nodeA, ChildNode nodeB) {
+        addConnection(parentB);
     }
 
-    public boolean manageChildren(float x, float y, int finger) {
-        int activeChildren = 0;
 
-
-        if (childrenVisible && children.size() > 0) {
-
-            boolean fingerInUse = false;
-            for(DeviceNode child : children){
-                if (child.getFingerId() == finger){
-                    fingerInUse = true;
-                    break;
-                }
-            }
-
-            int i = 0;
-            for (DeviceNode child : children) {
-
-                if(childrenTouchMap[i] == 0 && child.handleInteraction(x, y, finger, fingerInUse, activeChildren2)){
-                    activeChildren++;
-                    childrenTouchMap[i] = finger;
-
-                } else if (childrenTouchMap[i] != 0){
-                    childrenTouchMap[i] = 0;
-                }
-                i++;
-            }
-
-            return (activeChildren > 0);
-        }
-
-        return false;
+    public void disableInteraction(boolean movable) {
+        interactionDisabled = movable;
     }
 
+
+    public void setPaintAlpha(int a) {
+        paint.setAlpha(a);
+    }
 }

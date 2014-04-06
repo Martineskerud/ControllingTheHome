@@ -19,7 +19,7 @@ public abstract class CustomSurfaceView extends SurfaceView implements
 	protected int width;
 	protected Physics physics;
 	private boolean initialized = false;
-    protected SlotManager slotManager;
+    protected ChildAwareSlotManager slotManager;
 
 	private static final String TAG = "CustomSurfaceView";
 

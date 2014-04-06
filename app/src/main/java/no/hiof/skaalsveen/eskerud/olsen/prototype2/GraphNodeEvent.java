@@ -2,9 +2,9 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2;
 
 public class GraphNodeEvent {
 
-	public static final long LONG_PRESS_THRESHOLD = 500;
+	public static final long LONG_PRESS_THRESHOLD = 400;
 	public static final long LONG_PRESS_OVERKILL = 10000;
-	public static final double MOVE_ON_CLICK_THRESHOLD = 10;
+	public static final double MOVE_ON_CLICK_THRESHOLD = 20;
 	
 	public static final int CLICK = 1;
 	public static final int LONG_PRESS = 2;
@@ -16,6 +16,9 @@ public class GraphNodeEvent {
     public static final int MOVE_START = 6;
     public static final int MOVE_UP = 7;
     public static final int DROPPED = 8;
+    public static final int MOVED_OUT_OF_NODE = 9;
+    public static final int MOVING_OUTSIDE_OF_NODE = 10;
+    public static final int MOVE_UP_FROM_OUTSIDE_OF_NODE = 11;
 
     private int action;
 

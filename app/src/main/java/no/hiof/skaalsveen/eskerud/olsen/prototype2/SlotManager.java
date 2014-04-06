@@ -3,8 +3,11 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2;
 import android.graphics.Canvas;
 import android.util.Log;
 
+import java.util.AbstractCollection;
 import java.util.ArrayList;
 
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.DeviceNode;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.GraphNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.RoomNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.Controller;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphChangeListener;
@@ -24,6 +27,8 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
     private boolean shotgun = false;
     private int seatTaken = 0;
 
+
+
     public SlotManager(float screenW, float screenH){
         super();
 
@@ -32,6 +37,7 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
 
         pos[0] = new float[]{width/4, height/2};
         pos[1] = new float[]{width/4*3, height/2};
+
     }
 
     @Override
@@ -61,10 +67,13 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
 
         }
         else{
-            return super.add(newNode);
+            boolean res = super.add(newNode);
+            return res;
         }
 
     }
+
+
 
     private RoomNode getNearestNode(RoomNode node) {
 
@@ -76,13 +85,17 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
         return (d1 < d2 ? get(0) : get(1));
     }
 
-    public void remove(RoomNode node, RoomNode newNode){
+    public boolean remove(RoomNode node, RoomNode newNode){
+        boolean res = false;
+
         if (contains(node)){
             node.setChildrenVisible(false);
-            super.remove(node);
+            res = super.remove(node);
             changed = true;
             onGraphChangeListener.onGraphChange(node, true, newNode);
         }
+
+        return res;
     }
 
     @Override
@@ -136,5 +149,22 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
     public void setOnGraphChangeListener(GraphChangeListener onGraphChangeListener) {
         this.onGraphChangeListener = onGraphChangeListener;
     }
+
+    public ArrayList<DeviceNode> getAllChildren() {
+
+        ArrayList<DeviceNode> allChildren = new ArrayList<DeviceNode>();
+
+        for(RoomNode node : this){
+            ArrayList<DeviceNode> children = node.getChildren();
+            if(children!=null) {
+                for (DeviceNode deviceNode : children) {
+                    allChildren.add(deviceNode);
+                }
+            }
+        }
+
+        return allChildren;
+    }
+
 
 }

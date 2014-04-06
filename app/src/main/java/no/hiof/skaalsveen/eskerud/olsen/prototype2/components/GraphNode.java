@@ -3,21 +3,21 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.util.Log;
 
 import java.util.ArrayList;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.PhysicalObject;
 
-public abstract class GraphNode implements PhysicalObject {
+public abstract class GraphNode implements PhysicalObject, HapticDevice {
 
     private static final String TAG = "GraphNode";
     private final Paint debugPaint;
     private final int debugTextSize;
-    protected final String name;
+    protected String name;
     protected boolean isActive;
     protected GraphNodeListener graphNodeListener;
     protected GraphNodeEvent graphNodeEvent;
@@ -42,9 +42,17 @@ public abstract class GraphNode implements PhysicalObject {
     private ArrayList<Runnable> actionQueue;
     protected boolean debugPosition;
     private ArrayList<Connection> connections;
+    protected float cursorX;
+    protected float cursorY;
+    private boolean isPressed = false;
+    private boolean movedOutOfNode;
+    private boolean isPressedOutside;
+    protected HapticDevice hapticDevice;
+    private boolean movingOutsideNode;
 
-    public GraphNode(String name) {
+    public GraphNode(String name, HapticDevice hapticDevice) {
         this.name = name;
+        this.hapticDevice = hapticDevice;
         graphNodeEvent = new GraphNodeEvent();
         actionQueue = new ArrayList<Runnable>();
 
@@ -57,28 +65,37 @@ public abstract class GraphNode implements PhysicalObject {
         connections = new ArrayList<Connection>();
     }
 
+    public boolean isMoving() {
+        return isMoving;
+    }
+
     private class Connection{
 
         private final GraphNode node;
-        private final BezierCurve curve;
+        private Edge curve;
 
         public Connection(GraphNode node, BezierCurve curve){
             this.node = node;
             this.curve = curve;
         }
 
-        public Connection(DeviceNode node) {
+        public Connection(GraphNode node) {
             this.node = node;
-            this.curve = new BezierCurve(debugPaint);
+            if(node instanceof ChildNode) {
+                this.curve = new BezierCurve(debugPaint);
+            }
+            else if(node instanceof RoomNode){
+                this.curve = new Edge<GraphNode, GraphNode>(debugPaint);
+            }
         }
 
         public GraphNode getNode() {
             return node;
         }
-
-        public BezierCurve getCurve() {
-            return curve;
-        }
+//
+//        public BezierCurve getCurve() {
+//            return curve;
+//        }
 
         public void draw(Canvas canvas) {
             if(curve != null && node != null){
@@ -88,55 +105,79 @@ public abstract class GraphNode implements PhysicalObject {
 
         public void update(long tpf) {
             if(curve != null && node != null){
-                if(GraphNode.this instanceof ChildNode){
-                    if(node instanceof ChildNode){
-                        curve.update((ChildNode)GraphNode.this, (ChildNode)node);
-                    }
-                }
+                curve.update(GraphNode.this, node);
+
+//                if(GraphNode.this instanceof ChildNode){
+//                    if(node instanceof ChildNode){
+//                        curve.update((ChildNode)GraphNode.this, (ChildNode)node);
+//                    }
+//                }
             }
         }
     }
 
-    public void setActive(boolean b) {
+    public void handleTouch(boolean b) {
 
         if (graphNodeListener != null && b != isActive) { // change in state
+            //isActive = b;
 
-            if (b) { // finger down
+            if (b && !isPressed) { // finger down
 
-                pressedTimestamp = System.currentTimeMillis();
-                pressedPositionX = x;
-                pressedPositionY = y;
+                if(!isPressedOutside && getDistanceTo(cursorX, cursorY) < getRadius()) {
+                    pressedTimestamp = System.currentTimeMillis();
+                    pressedPositionX = x;
+                    pressedPositionY = y;
+                    isPressed = true;
+                    isPressedOutside = false;
+                    movedOutOfNode = false;
+                    isActive = true;
+                }
+                else{
+                    isPressedOutside = true;
+                    isPressed = false;
+                    isActive = false;
+                }
 
-            } else { // finger up
-
+            } else{ // finger up
+                isActive = false;
+                movingOutsideNode = false;
 
                 long deltaTime = System.currentTimeMillis() - pressedTimestamp;
-                double deltaPosition = Math.sqrt(Math.pow((x - pressedPositionX), 2)
-                        + Math.pow((y - pressedPositionY), 2));
+                double deltaPosition = Math.sqrt(Math.pow((ox - pressedPositionX), 2)
+                        + Math.pow((oy - pressedPositionY), 2));
 
                 double moveOnClickThreshold = getRadius();//GraphNodeEvent.MOVE_ON_CLICK_THRESHOLD;
-                if (deltaTime > GraphNodeEvent.CLICK_THRESHOLD &&
-                        deltaTime < GraphNodeEvent.LONG_PRESS_THRESHOLD
-                        && deltaPosition < moveOnClickThreshold && !isLongPressing) { // single
-                    // click
-                    graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
-                    graphNodeListener.onEvent(graphNodeEvent, this);
-                }
-                else if(isMovable){
+                boolean notNoise = deltaTime > GraphNodeEvent.CLICK_THRESHOLD;
+                boolean withinTime = deltaTime < GraphNodeEvent.LONG_PRESS_THRESHOLD;
+                boolean withinPos = deltaPosition < moveOnClickThreshold;
 
-                    graphNodeEvent.setEvent(GraphNodeEvent.MOVE_UP);
-                    graphNodeListener.onEvent(graphNodeEvent, this);
+                if(isPressed) {
+                    if (movedOutOfNode && !isMoving) {
+
+                        graphNodeEvent.setEvent(GraphNodeEvent.MOVE_UP_FROM_OUTSIDE_OF_NODE);
+                        graphNodeListener.onEvent(graphNodeEvent, this);
+                        movedOutOfNode = false;
+
+                    } else if (notNoise && withinTime && withinPos && !isLongPressing) { // single
+                        // click
+                        graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
+                        graphNodeListener.onEvent(graphNodeEvent, this);
+                    } else if (isMovable && !isMoveDisabled()) {
+
+                        graphNodeEvent.setEvent(GraphNodeEvent.MOVE_UP);
+                        graphNodeListener.onEvent(graphNodeEvent, this);
+                    }
                 }
+                isPressed = false;
 
                 isMovable = false;
                 isMoving = false;
                 isLongPressing = false;
+                isPressedOutside = false;
                 onFingerUp();
             }
-
         }
 
-        isActive = b;
     }
 
     public boolean isActive() {
@@ -156,17 +197,17 @@ public abstract class GraphNode implements PhysicalObject {
         if(debugPosition) {
             canvas.drawText("ox: " + Math.floor(ox), ox + radius, oy - 2 * debugTextSize, debugPaint);
             canvas.drawText("oy: " + Math.floor(oy), ox + radius, oy - debugTextSize, debugPaint);
-            canvas.drawText("x: " + Math.floor(x), ox + radius, oy + debugTextSize, debugPaint);
-            canvas.drawText("y: " + Math.floor(y), ox + radius, oy + 2 * debugTextSize, debugPaint);
+            canvas.drawText("x: " + Math.floor(pressedPositionX), ox + radius, oy + debugTextSize, debugPaint);
+            canvas.drawText("y: " + Math.floor(pressedPositionY), ox + radius, oy + 2 * debugTextSize, debugPaint);
         }
 
         drawConnections(canvas);
+
     }
 
     private void drawConnections(Canvas canvas) {
         if(connections != null && connections.size() > 0){
             for(Connection connection: connections){
-
                 connection.draw(canvas);
             }
         }
@@ -175,28 +216,51 @@ public abstract class GraphNode implements PhysicalObject {
 
     public void update(long tpf) {
 
-        if (graphNodeListener != null && isActive) {
+        if(isPressed && !isPressedOutside) {
+            if (graphNodeListener != null && isActive) {
 
-            long deltaTime = System.currentTimeMillis() - pressedTimestamp;
+                long deltaTime = System.currentTimeMillis() - pressedTimestamp;
 
-            double deltaPosition = Math.sqrt(Math.pow((x - pressedPositionX), 2)
-                    + Math.pow((y - pressedPositionY), 2));
+                double deltaPosition = Math.sqrt(Math.pow((cursorX - pressedPositionX), 2)
+                        + Math.pow((cursorY - pressedPositionY), 2));
 
-            if (outsideThreshold(deltaPosition) && !isLongPressing) {
-                onStartMove();
-                graphNodeEvent.setEvent((isMoving ? GraphNodeEvent.MOVE : GraphNodeEvent.MOVE_START));// move
-                graphNodeListener.onEvent(graphNodeEvent, this);
-                isMoving = true;
-                isMovable = true; // not really here
+                if (outsideThreshold(deltaPosition)) {
+                    if (!isMoveDisabled() && !movingOutsideNode) {
 
-            } else if (deltaTime > GraphNodeEvent.LONG_PRESS_THRESHOLD && pressedTimestamp > 0) {
-                pressedTimestamp = 0;
-                isMoving = false;
-                isMovable = false;
-                isLongPressing = true;
-                graphNodeEvent.setEvent(GraphNodeEvent.LONG_PRESS);// press
-                graphNodeListener.onEvent(graphNodeEvent, this);
+                        if(!isMoving){
+                            onStartMove();
+                            isMoving = true;
+                            isMovable = true;
+                            graphNodeEvent.setEvent(GraphNodeEvent.MOVE_START);// start move
+                            graphNodeListener.onEvent(graphNodeEvent, this);
+                        }
+                        else{
+                            graphNodeEvent.setEvent(GraphNodeEvent.MOVE);// move
+                            graphNodeListener.onEvent(graphNodeEvent, this);
+                        }
 
+                    } else if (!movedOutOfNode) {
+
+                        movedOutOfNode = true;
+                        graphNodeEvent.setEvent(GraphNodeEvent.MOVED_OUT_OF_NODE);// MOVE OUT
+                        graphNodeListener.onEvent(graphNodeEvent, this);
+
+                    } else {
+                        movingOutsideNode = true;
+                        graphNodeEvent.setEvent(GraphNodeEvent.MOVING_OUTSIDE_OF_NODE);// MOVE OUT
+                        graphNodeListener.onEvent(graphNodeEvent, this);
+                    }
+
+                } else if (!isLongPressing && deltaTime > GraphNodeEvent.LONG_PRESS_THRESHOLD && pressedTimestamp > 0) {
+                    if (!isMoving && !isMovable) {
+
+                        pressedTimestamp = 0;
+                        isLongPressing = true;
+                        graphNodeEvent.setEvent(GraphNodeEvent.LONG_PRESS);// press
+                        graphNodeListener.onEvent(graphNodeEvent, this);
+                    }
+
+                }
             }
         }
 
@@ -217,6 +281,10 @@ public abstract class GraphNode implements PhysicalObject {
         }
 
         updateConnections(tpf);
+    }
+
+    protected boolean isMoveDisabled() {
+        return false;
     }
 
     private void updateConnections(long tpf) {
@@ -323,6 +391,11 @@ public abstract class GraphNode implements PhysicalObject {
         moveY(y);
     }
 
+    public void saveCursor(float x, float y) {
+        cursorX = x;
+        cursorY = y;
+    }
+
     public void moveX(float x, Runnable r) {
         moveX(x);
         actionQueue.add(r);
@@ -369,9 +442,26 @@ public abstract class GraphNode implements PhysicalObject {
         return(node != null && getDistanceTo(node) < getRadius() + node.getRadius());
     }
 
-    public void addConnection(DeviceNode node) {
+    public void addConnection(GraphNode node) {
         if(!this.equals(node)) {
             connections.add(new Connection(node));
         }
+    }
+
+    protected void clearConnections() {
+        connections.clear();
+    }
+
+    @Override
+    public boolean performHapticFeedback(int time) {
+        if(hapticDevice != null){
+            return hapticDevice.performHapticFeedback(time);
+        }
+        return false;
+    }
+
+    @Override
+    public void highlightOtherChildren(GraphNode node, int alpha) {
+        hapticDevice.highlightOtherChildren(node, alpha);
     }
 }

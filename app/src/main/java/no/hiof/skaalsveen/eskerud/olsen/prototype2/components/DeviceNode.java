@@ -1,6 +1,5 @@
 package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.CustomSurfaceView;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
 
@@ -8,9 +7,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
+import android.graphics.RectF;
 import android.util.Log;
-
-import java.util.ArrayList;
 
 public class DeviceNode extends ChildNode implements GraphNodeListener {
 
@@ -26,6 +24,11 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
     private int fingerId = -1;
     private boolean isHoveredOverWithOtherNode = false;
     private DeviceNode hoverChild;
+    private boolean moveDisabled = true;
+    private DeviceNode movingChild;
+    private float value = 0f;
+    private boolean isAdjustable;
+    private float targetValue = 0;
 
     public DeviceNode(String name, RoomNode parent, Paint textPaint) {
         super(name, parent);
@@ -73,8 +76,21 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
         }
 
 		parentLine.draw(canvas);
+
+        if(value > 0){
+            drawValue(canvas);
+        }
         super.draw(canvas);
 	}
+
+    private void drawValue(Canvas canvas) {
+        final RectF oval = new RectF();
+        RoomNode p = getParent();
+
+        float r = radius* 1.1f;
+        oval.set(getX()-r, getY()-r, getX()+ r, getY()+ r);
+        canvas.drawArc(oval, -90, (360*value)-90, false, paint);
+    }
 
     private void drawText(Canvas canvas) {
         String[] lines = name.split("\n");
@@ -90,16 +106,17 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
     @Override
 	public void update(long tpf) {
-		
-		//ox = parent.ox + 100;
-		//oy = parent.oy + 100;
 
-//        ArrayList<DeviceNode> children = parent.getChildren();
-//        CustomSurfaceView.placeInCircle(parent.getX(), parent.getY(), radius * 2, children);
-
+        if(Math.abs(targetValue - value) > (1/12)){
+//            float dv = value - targetValue;
+//            value += dv;
+            value += (targetValue-value) * 0.01 * tpf;
+        }
 
 		super.update(tpf);
         updateParentLine(getParent());
+
+
 	}
 
     @Override
@@ -186,25 +203,36 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
         textPaint.setAlpha(a);
     }
 
-    public boolean handleInteraction(float x, float y, int finger, boolean fingerInUse, int siblingsMoving) {
+    public boolean handleInteraction(float x, float y, int finger, boolean fingerInUse, DeviceNode movingChild) {
 
+        this.movingChild = movingChild;
         if(!getParent().isMoving){
 
+            saveCursor(x,y);
             if (!isPressed) {
                 if (containsPosition(x, y, 10)){
                     if(!fingerInUse) {
                         fingerId = finger;
                         isPressed = true;
-                        setActive(true);
+                        handleTouch(true);
                     }
                     else{
-                        isHoveredOverWithOtherNode = true;
+                        if(movingChild != null && movingChild.isMoving()){
+                            isHoveredOverWithOtherNode = true;
+
+                        }
+//                        if(hoverChild != null && hoverChild.isMoving){
+
+//                        }
+//                        else{
+//                            isHoveredOverWithOtherNode = false;
+//                        }
                     }
                 }
                 else{
                     isHoveredOverWithOtherNode = false;
                 }
-            } else if(fingerId == finger){
+            } else if(isMoving && fingerId == finger){
                 moveTo(x, y);
             }
 
@@ -221,14 +249,17 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
             Log.d(TAG, this+" CLICK!");
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE) {
             Log.d(TAG, this+" MOVE!");
+            highlightOtherChildren(this, 100);
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_START) {
             Log.d(TAG, this+" MOVE_START!");
+            highlightOtherChildren(this, 100);
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_UP) {
 
             Log.d(TAG, this+" MOVE UP!");
 
+            moveDisabled = true;
             if(hoverChild != null){
                 if(collidesWith(hoverChild)) {
                     Log.d(TAG, "Dropped " + this + " in " + hoverChild);
@@ -241,15 +272,66 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
                 Log.d(TAG, "hoverChild is null!");
             }
 
+
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.LONG_PRESS) {
-            Log.d(TAG, this+" LONG PRESS!");
-            debugPosition = !debugPosition;
+
+            if(!isAdjustable) {
+                performHapticFeedback(10);
+                //Log.d(TAG, this+" LONG PRESS!");
+//            debugPosition = !debugPosition;
+                moveDisabled = false;
+            }
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.DROPPED) {
             Log.d(TAG, this+" DROPPED!");
+            highlightOtherChildren(this, 255);
 
             graphNode.addConnection(this);
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVED_OUT_OF_NODE) {
+            Log.d(TAG, this+" MOVED OUT!");
+            getParent().disableInteraction(true);
+
+
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVING_OUTSIDE_OF_NODE) {
+
+
+            float cx = ox-cursorX;
+            float cy = oy-cursorY;
+
+
+
+            if(isAdjustable || getDistanceTo(cursorX, cursorY) > getRadius() * 2){
+                if(!isAdjustable){
+                    performHapticFeedback(10);
+                }
+                isAdjustable = true;
+
+                double angle = Math.atan(cy / (cx == 0 ? 0.00001f : cx));
+                angle+= Math.PI/2;
+
+                if(cx > 0){
+                    angle+= Math.PI;
+
+                    if(cy > 0){
+                        //angle-= Math.PI;
+                    }
+                }
+
+                angle = angle+(Math.PI/2 % (Math.PI * 2));
+                setValue(angle);
+            }
+
+
+        } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_UP_FROM_OUTSIDE_OF_NODE) {
+            Log.d(TAG, this+" MOVED OUT FROM OUTSIDE NODE!");
+            getParent().disableInteraction(false);
+            isAdjustable = false;
+            moveDisabled = true;
         }
+    }
+
+    private void setValue(double angle) {
+        targetValue = (float) (angle / (Math.PI*2));
     }
 
     public void handleNoInteraction(DeviceNode hoverChild) {
@@ -258,7 +340,7 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
             isPressed = false;
             fingerId = -1;
             this.hoverChild = hoverChild;
-            setActive(false);
+            handleTouch(false);
 
         }
         isHoveredOverWithOtherNode = false;
@@ -274,4 +356,12 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
     }
 
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    protected boolean isMoveDisabled() {
+        return moveDisabled;
+    }
 }

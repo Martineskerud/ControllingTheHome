@@ -7,6 +7,7 @@ import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.GraphNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.RoomNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphChangeListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ServerEventListener;
 
 import android.content.Context;
@@ -20,7 +21,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 
 public class CustomDrawableView extends CustomSurfaceView implements
-        GraphNodeListener, GraphChangeListener {
+        GraphNodeListener, GraphChangeListener, HapticDevice {
 
 	protected static final String TAG = "CustomDrawableView";
 	private GameThread thread = null;
@@ -54,7 +55,7 @@ public class CustomDrawableView extends CustomSurfaceView implements
     @Override
     protected void createSlotManager(int width, int height) {
 
-        slotManager = new SlotManager(width, height);
+        slotManager = new ChildAwareSlotManager(width, height);
         slotManager.setOnGraphChangeListener(this);
     }
 
@@ -94,7 +95,7 @@ public class CustomDrawableView extends CustomSurfaceView implements
 		int i = 0;
 		while (roomNodes.size() < rooms) {
 
-			RoomNode rn = new RoomNode(labels[i], textPaint);
+			RoomNode rn = new RoomNode(labels[i], textPaint, this);
 			rn.setGraphNodeListener(this);
 			roomNodes.add(rn);
 			fingerMap[i] = i;
@@ -137,7 +138,10 @@ public class CustomDrawableView extends CustomSurfaceView implements
 			gestureMeasureMode = false;
 			gestureTicks = 0;
 			childPress = false;
+            slotManager.onUp();
+
 		} else {
+
 
 			fingersActive = event.getPointerCount();
 			int gestureFingers = 0;
@@ -145,7 +149,7 @@ public class CustomDrawableView extends CustomSurfaceView implements
 			float[] fingerPositionsY = new float[fingersActive];
 			float gesturePositionsSumX = 0;
 			float gesturePositionsSumY = 0;
-
+            boolean childrenManaged = false;
 
 			for (int i = 0; i < rooms; i++) {
 
@@ -156,6 +160,9 @@ public class CustomDrawableView extends CustomSurfaceView implements
 						swapFingerNodes(pi, (int) event.getX(i),
 								(int) event.getY(i));
 					}
+
+                    ;
+
 
 					RoomNode node = getFingerNode(pi);
 
@@ -169,12 +176,14 @@ public class CustomDrawableView extends CustomSurfaceView implements
 								fingerPositionsX, fingerPositionsY);
 
                         boolean b1 = !gestureMode && fingersInside < 2;
-						if (b1 && node.trySet(event.getX(i), event.getY(i))) {
+
+                        if (b1 && node.trySet(event.getX(i), event.getY(i))) {
 						    //click, move, press
-							node.setActive(true);
+							node.handleTouch(true);
 							mask[pi] = 1;
                             roomsInMotion++;
-						} else if(b1 && node.manageChildren(event.getX(i), event.getY(i), pi)){
+						} else if(slotManager.manageTouch(node, event.getX(i), event.getY(i), pi)){
+                            childrenManaged = true;
                             mask[pi] = 1;
                         }
                         else {
@@ -256,12 +265,12 @@ public class CustomDrawableView extends CustomSurfaceView implements
 		for (int i = 0; i < mask.length; i++) {
 			if (mask[i] != 1) {
 				RoomNode node = getFingerNode(i);
-				node.setActive(false);
+				node.handleTouch(false);
                 if(node.hasGhost()){
                     node.setGhost(!(fingersActive == 0));
                 }
 
-                node.handleChildrenNotActive();
+                //node.handleChildrenNotActive();
 			}
 		}
 
@@ -443,13 +452,13 @@ public class CustomDrawableView extends CustomSurfaceView implements
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.LONG_PRESS) {
 			// bgColor = Color.RED;
-			this.performHapticFeedback(10);
+            performHapticFeedback(10);
 
-		}
+        }
 
 	}
 
-	public void setServerEventListener(ServerEventListener listener) {
+    public void setServerEventListener(ServerEventListener listener) {
 		this.serverEventListener = listener;
 	}
 
@@ -457,6 +466,17 @@ public class CustomDrawableView extends CustomSurfaceView implements
 	public ArrayList<RoomNode> getRoomNodes() {
 		return roomNodes;
 	}
+
+    @Override
+    public boolean performHapticFeedback(int feedbackConstant) {
+        return super.performHapticFeedback(feedbackConstant);
+    }
+
+    @Override
+    public void highlightOtherChildren(GraphNode node, int alpha) {
+        slotManager.setOtherChildrenAlpha(node, alpha);
+    }
+
 
     @Override
     public void onGraphChange(RoomNode node, boolean removed, RoomNode newNode) {

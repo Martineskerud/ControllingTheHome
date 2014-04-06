@@ -15,6 +15,8 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
     private float radius;
     private float middleY;
     private float middleX;
+    private boolean crossRooms;
+    private boolean isVisible;
 
     public BezierCurve(Paint paint) {
         super(paint);
@@ -26,10 +28,20 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
         RoomNode parentB = nodeB.getParent();
         RoomNode parentA = nodeA.getParent();
 
+
         if(parentA != null && parentB != null){
+
+            if(parentA.childrenVisible && parentB.childrenVisible){
+                isVisible = true;
+            }
+            else{
+                isVisible = false;
+                parentA.setRoomConnection(parentB, nodeA, nodeB);
+            }
 
             if(parentA.equals(parentB)){ // same parent!
 
+                crossRooms = false;
                 parentX = parentA.getX();
                 parentY = parentA.getY();
                 radius = parentA.getChildRadius()*1.2f;
@@ -37,12 +49,20 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
             }
             else{
 
+                crossRooms = true;
                 parentX = (parentA.getX()+parentB.getX())/2;
                 parentY = (parentA.getY()+parentB.getY())/2;
-                radius = 10;
+
+                float childDX = (nodeA.getX()+nodeB.getX())/2;
+                float dx = (parentX-childDX);
+
+                radius = Math.abs(parentA.getX()-parentX)+dx;
 
             }
 
+        }
+        else{
+            isVisible = false;
         }
 
         float mx = (stopX + startX) / 2;
@@ -80,7 +100,9 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
     @Override
     public void draw(Canvas canvas) {
 
-
+        if(!isVisible){
+            return;
+        }
         final Path path = new Path();
         path.moveTo(startX, startY);
         path.quadTo(middleX, middleY, stopX, stopY);
@@ -99,6 +121,7 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
 
         paint.setTextSize(20);
         canvas.drawTextOnPath("<", path, 0, 7, paint);
+
     }
 
     private double getAngle(float px, float py, float x, float y) {

@@ -7,7 +7,7 @@ public abstract class ChildNode extends GraphNode{
     private RoomNode parent;
 
     public ChildNode(String name, RoomNode parent) {
-        super(name);
+        super(name, parent);
         this.parent = parent;
     }
 
