@@ -433,11 +433,11 @@ public class CustomDrawableView extends CustomSurfaceView implements
 	}
 
     private void moveDown(RoomNode node) {
-        node.moveY(height - node.getMinimizedRadius());
+        node.moveY(height - node.getRadius());
     }
 
     private void moveUp(RoomNode node) {
-        node.moveY(node.getMinimizedRadius());
+        node.moveY(node.getRadius());
     }
 
     @Override
