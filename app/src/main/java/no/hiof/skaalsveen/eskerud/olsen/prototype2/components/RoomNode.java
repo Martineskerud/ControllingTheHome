@@ -11,9 +11,10 @@ import java.util.HashMap;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.ActivityEvent;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.CustomDrawableView;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
 
-public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
+public class RoomNode extends ChildEnabledGraphNode {
 
 	public static final String TAG = "GraphNode";
     private static final int LOW_ALPHA = 100;
@@ -24,16 +25,14 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
     private final Paint ghostPaint;
     private final CustomDrawableView customDrawableView;
     private int[] childrenTouchMap;
-    private Paint paint;
+
 	public float fx, fy;
 	private Paint textPaint;
 	private float extra_margin = 20;
-    private long childrenVisibleTime;
     private int minimizedRadius = 50;
     private int requestUp;
     private float startX, startY;
     private float ghostX, ghostY;
-    private int alpha = 255;
     private int alternativeRadius = MAX_RADIUS;
     private int activeChildren2;
     private DeviceNode hoverChild;
@@ -47,22 +46,17 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
         String debugInfo = super.getDebugInfo();
         debugInfo+= "\n isInteractable="+fromBoolean(isInteractable);
         debugInfo+= "\n interactionDisabled="+fromBoolean(interactionDisabled);
+        debugInfo+= "\n activeChildren2="+activeChildren2;
 
         return debugInfo;
     }
 
-    public RoomNode(String name, Paint textPaint, CustomDrawableView hapticDevice) {
-		super(name, hapticDevice);
+    public RoomNode(String name, Paint textPaint, CustomDrawableView customDrawableView) {
+		super(name, customDrawableView.getActivityEventListener());
 
-        customDrawableView = hapticDevice;
+        this.customDrawableView = customDrawableView;
 		this.ox = 0;
 		this.oy = 0;
-
-		paint = new Paint();
-		paint.setAntiAlias(true);
-		paint.setColor(Color.RED);
-		paint.setStyle(Paint.Style.STROKE);
-		paint.setStrokeWidth(4.5f);
 
         ghostPaint = new Paint();
         ghostPaint.setAntiAlias(true);
@@ -157,12 +151,7 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 
 		canvas.drawText(name, tx, ty + 10.5f, textPaint);
 
-		if (childrenVisible && children.size() > 0) {
-			for (DeviceNode child : children) {
-                child.setAlpha(alpha);
-				child.draw(canvas);
-			}
-		}
+
 
 
         super.draw(canvas);
@@ -175,32 +164,13 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 	 * */
 	@Override
 	public void update(long tpf) {
-		super.update(tpf);
 
         radius = getRadius();
-
-		paint.setColor(isActive ? Color.RED : Color.BLUE);
-        childrenVisibleTime+=tpf;
-
-		if (children != null && children.size() > 0) {
+		super.update(tpf);
 
 
-            if(childrenVisibleTime < 1000 || childrenVisible) {
 
-                clearConnections();
-                for (DeviceNode child : children) {
 
-                    if (childrenVisibleTime < 1000) {
-                        child.updateAlpha(tpf, childrenVisible);
-                    }
-
-                    child.update(tpf);
-                    child.updateParentLine(this);
-                }
-            }
-
-            placeInCircle(getX(), getY(), getChildRadius(), getChildren());
-		}
 
         activeChildren2 = 0;
         for (DeviceNode child : children) {
@@ -208,6 +178,8 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
         }
 
 	}
+
+
 
     @Override
     public float getRadius() {
@@ -313,9 +285,7 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
         resetAlpha();
     }
 
-    private void resetAlpha() {
-        alpha = 255;
-    }
+
 
     public void forceSet(float x, float y) { // used for moving nodes by hand & zooming
         setX(x);
@@ -378,9 +348,7 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
         return "DeviceNode[" + name+ "]";
     }
 
-    public ArrayList<DeviceNode> getChildren() {
-        return children;
-    }
+
 
     public void place(ArrayList<RoomNode> roomNodes, float width) {
 
@@ -455,60 +423,6 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
         return ghost;
     }
 
-//    public void handleChildrenNotActive() {
-//        if (childrenVisible && children.size() > 0) {
-//
-//            for(DeviceNode child : children){
-//                if(child.isHoveredOver()){
-//                    hoverChild = child;
-//
-//                }
-//            }
-//
-//            for (DeviceNode child : children) {
-//                child.handleNoInteraction(hoverChild);
-//            }
-//        }
-//    }
-
-//    public boolean manageChildren(float x, float y, int finger) {
-//        int activeChildren = 0;
-//        d1++;
-//
-//        if (childrenVisible && children.size() > 0) {
-//
-//            boolean fingerInUse = false;
-//            for(DeviceNode child : children){
-//                if (child.getFingerId() == finger){
-//                    fingerInUse = true;
-//                    break;
-//                }
-//            }
-//
-//            int i = 0;
-//            for (DeviceNode child : children) {
-//
-//                if(childrenTouchMap[i] == 0 && child.handleInteraction(x, y, finger, fingerInUse, activeChildren2)){
-//                    activeChildren++;
-//                    childrenTouchMap[i] = finger;
-//
-//                } else if (childrenTouchMap[i] != 0){
-//                    childrenTouchMap[i] = 0;
-//                }
-//                i++;
-//            }
-//
-//            return (activeChildren > 0);
-//        }
-//
-//        return false;
-//    }
-
-
-
-
-
-
     public void setAlpha(int a) {
         paint.setAlpha(a);
 
@@ -519,11 +433,13 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
         this.name = s;
     }
 
-    public boolean sendActivityEvent(ActivityEvent activityEvent) {
-        return customDrawableView.getActivityEventListener().onActivityEvent(activityEvent);
-    }
-
     public Paint getPaint() {
         return paint;
+    }
+
+    @Override
+    public void highlightOtherChildren(GraphNode node, int alpha) {
+        customDrawableView.highlightOtherChildren(node, alpha);
+
     }
 }

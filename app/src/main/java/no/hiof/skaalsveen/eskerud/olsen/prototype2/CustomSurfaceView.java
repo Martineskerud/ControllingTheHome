@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.GraphNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.RoomNode;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 
 import android.content.Context;
 import android.util.AttributeSet;

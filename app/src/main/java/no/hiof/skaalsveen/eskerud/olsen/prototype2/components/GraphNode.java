@@ -7,16 +7,18 @@ import android.util.Log;
 
 import java.util.ArrayList;
 
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.ActivityEvent;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.PhysicalObject;
 
-public abstract class GraphNode implements PhysicalObject, HapticDevice {
+public abstract class GraphNode implements PhysicalObject {
 
     private static final String TAG = "GraphNode";
     private final Paint debugPaint;
     private final int debugTextSize;
+    protected final ActivityEventListener activityEventListener;
     protected String name;
     protected boolean isActive;
     protected GraphNodeListener graphNodeListener;
@@ -47,13 +49,13 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
     private boolean isPressed = false;
     private boolean movedOutOfNode;
     private boolean isPressedOutside;
-    protected HapticDevice hapticDevice;
     private boolean movingOutsideNode;
     protected boolean connectionsVisible = false;
+    protected boolean isDebuggable;
 
-    public GraphNode(String name, HapticDevice hapticDevice) {
+    public GraphNode(String name, ActivityEventListener activityEventListener) {
+        this.activityEventListener = activityEventListener;
         this.name = name;
-        this.hapticDevice = hapticDevice;
         graphNodeEvent = new GraphNodeEvent();
         actionQueue = new ArrayList<Runnable>();
 
@@ -80,6 +82,8 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
         s+= " cursorY="+round(cursorY);
 
         s+= "\nisActive="+fromBoolean(isActive);
+        s+= "\n Connections="+(connections!=null ? connections.size() : "null");
+
 
         return s;
     }
@@ -96,6 +100,14 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
         return isMoving;
     }
 
+    public void setDebuggable(boolean debuggable) {
+        this.isDebuggable = debuggable;
+    }
+
+    public String getName() {
+        return name;
+    }
+
     private class Connection{
 
         private final GraphNode node;
@@ -108,11 +120,12 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
 
         public Connection(GraphNode node) {
             this.node = node;
-            if(node instanceof ChildNode) {
-                this.curve = new BezierCurve(debugPaint);
-            }
-            else if(node instanceof RoomNode){
+
+            if(node instanceof RoomNode){
                 this.curve = new Edge<GraphNode, GraphNode>(debugPaint, "Connection");
+            }
+            else if(node instanceof ChildNode) {
+                this.curve = new BezierCurve(debugPaint);
             }
         }
 
@@ -155,7 +168,6 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
                     pressedPositionX = x;
                     pressedPositionY = y;
                     isPressed = true;
-                    isPressedOutside = false;
                     movedOutOfNode = false;
                     isActive = true;
                 }
@@ -201,12 +213,14 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
                 isMovable = false;
                 isMoving = false;
                 isLongPressing = false;
-                isPressedOutside = false;
                 onFingerUp();
 
                 graphNodeEvent.setEvent(GraphNodeEvent.UP);
                 graphNodeListener.onEvent(graphNodeEvent, this);
             }
+        }
+        else if(!b){
+            isPressedOutside = false;
         }
 
     }
@@ -232,7 +246,7 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
             canvas.drawText("y: " + Math.floor(pressedPositionY), ox + radius, oy + 2 * debugTextSize, debugPaint);
         }
 
-        if(getDistanceTo(cursorX, cursorY) < 3*getRadius()) {
+        if(isDebuggable && getDistanceTo(cursorX, cursorY) < 3*getRadius()) {
             drawDebugInfo(canvas);
         }
 
@@ -435,7 +449,6 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
     public abstract void setPlacement(float[] po);
 
     public float getRadius() {
-
         return radius;
     }
 
@@ -472,23 +485,29 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
 
         if(nodes != null && nodes.size() > 0) {
 
-            float step = (float) ((Math.PI * 2) / nodes.size());
-            float s = 0;
+            double fullAngle = Math.PI * 2;
+            float angleOffset = 0;
 
-            for (GraphNode node : nodes) {
+            placeInCircle(x, y, radius, nodes, fullAngle, angleOffset);
+        }
+    }
 
-                if(!node.isActive){
-                    float radius2 = radius + node.getRadius();
+    public static void placeInCircle(float x, float y, float radius, ArrayList<? extends GraphNode> nodes, double fullAngle, float angleOffset) {
+        float step = (float) (fullAngle / nodes.size());
 
-                    float rx = (float) (radius2 * Math.sin(s));
-                    float ry = (float) (radius2 * Math.cos(s));
+        for (GraphNode node : nodes) {
 
-                    node.setX(x + rx);
-                    node.setY(y + ry);
-                }
+            if(!node.isActive){
+                float radius2 = radius + node.getRadius();
 
-                s += step;
+                float rx = (float) (radius2 * Math.sin(angleOffset));
+                float ry = (float) (radius2 * Math.cos(angleOffset));
+
+                node.setX(x + rx);
+                node.setY(y + ry);
             }
+
+            angleOffset += step;
         }
     }
 
@@ -506,16 +525,14 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
         connections.clear();
     }
 
-    @Override
     public boolean performHapticFeedback(int time) {
-        if(hapticDevice != null){
-            return hapticDevice.performHapticFeedback(time);
+        if(activityEventListener != null){
+
+            ActivityEvent event = new ActivityEvent(ActivityEvent.PERFORM_HAPTIC_FEEDBACK);
+            event.addValue(time);
+            return activityEventListener.onActivityEvent(event);
         }
         return false;
     }
 
-    @Override
-    public void highlightOtherChildren(GraphNode node, int alpha) {
-        hapticDevice.highlightOtherChildren(node, alpha);
-    }
 }

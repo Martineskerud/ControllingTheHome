@@ -17,6 +17,7 @@ public class ChildAwareSlotManager extends SlotManager {
     private int activeChildren2 = 0;
     private DeviceNode hoverChild;
     private DeviceNode movingChild = null;
+    private boolean debug = false;
 
     public ChildAwareSlotManager(float screenW, float screenH) {
         super(screenW, screenH);
@@ -44,13 +45,22 @@ public class ChildAwareSlotManager extends SlotManager {
         children.clear();
         for(RoomNode node : this){
             if(node.childrenVisible) {
+
                 ArrayList<DeviceNode> children = node.getChildren();
                 if(children != null) {
                     for (DeviceNode child : children) {
                         this.children.add(child);
+                        if(child.children != null && child.children.size() > 0){
+                            for (DeviceNode subChild : child.children) {
+                                this.children.add(subChild);
+                                subChild.setDebuggable(debug);
+                            }
+                        }
+                        child.setDebuggable(debug);
                     }
                 }
             }
+            node.setDebuggable(debug);
         }
         childrenTouchMap = new int[children.size()];
 
@@ -129,5 +139,9 @@ public class ChildAwareSlotManager extends SlotManager {
                 child.highlight((a > 125 ? false : true));
             }
         }
+    }
+
+    public void toggleDebugging() {
+        debug = !debug;
     }
 }

@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Window;
 
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ServerEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.networking.ServerConnection;
 
@@ -31,9 +32,7 @@ public class FullscreenActivity extends Activity implements ServerEventListener,
 		surface.setServerEventListener(this);
         surface.setActivityEventListener(this);
         setContentView(surface);
-        
-        
-       
+
 	}
 
 	@Override
@@ -101,8 +100,15 @@ public class FullscreenActivity extends Activity implements ServerEventListener,
     @Override
     public boolean onActivityEvent(ActivityEvent event) {
 
-        Log.d(TAG, "Event. Showing dialog");
-        showDialog();
+        if(event.getType() == ActivityEvent.CONNECTION_ADDED){
+            Log.d(TAG, "Event. Showing dialog");
+            showDialog();
+
+        } else if(event.getType() == ActivityEvent.PERFORM_HAPTIC_FEEDBACK){
+            Log.d(TAG, "BZZZ");
+            surface.performHapticFeedback(event.getValue());
+        }
+
         return true;
     }
 }

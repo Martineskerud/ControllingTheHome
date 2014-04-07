@@ -2,6 +2,7 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.ActivityEvent;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphNodeListener;
 
 import android.graphics.Canvas;
@@ -23,7 +24,7 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
     public static final float NORMAL_STROKE_WIDTH = 2.5f;
 
-    private final Paint edgePaint;
+    protected final Paint edgePaint;
     private final int type;
     private final Paint identityPaint;
     private Paint paint;
@@ -64,8 +65,8 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
         return debugInfo;
     }
 
-    public DeviceNode(String name, ChildEnabledGraphNode parent, Paint textPaint, int type) {
-        super(name, parent);
+    public DeviceNode(String name, ChildEnabledGraphNode parent, ActivityEventListener activityEventListener, Paint textPaint, int type) {
+        super(name, activityEventListener, parent);
 
 		this.type = type;
 
@@ -106,11 +107,17 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
         setValueFromAngle(Math.PI / 2);
 
         if(name.equals("Stove")){
-            String[] devices = new String[]{"Light", "Fireplace", "TV"};
+            String[] devices = new String[]{"1", "2", "3", "4"};
             createChildren(textPaint, devices);
         }
 	}
 
+    @Override
+    protected void createChildren(Paint textPaint, String[] devices) {
+        for(String dev : devices){
+            children.add(new SymbolEnabledDeviceNode(dev, this, activityEventListener, textPaint, getChildType(dev)));
+        }
+    }
 
     @Override
     public float getRadius() {
@@ -231,7 +238,7 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
     private void drawValueArch(Canvas canvas, float scale, float startVal, float val, Paint paint, int offset) {
         final RectF oval = new RectF();
 
-        float r = radius * scale;
+        float r = getRadius() * scale;
         oval.set(getX()-r, getY()-r, getX()+ r, getY()+ r);
         canvas.drawArc(oval, ((360* startVal)+offset) % 360, ((360* val)+offset) % 360, false, paint);
     }
@@ -239,18 +246,22 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
     private void drawText(Canvas canvas) {
 
 
-        String[] lines = getDisplayText().split("\n");
-        int l2 = lines.length/2;
-        float textHeight = 21f;
-        float offset = oy +(lines.length==1 ? textHeight/2 : 0);
+        String displayText = getDisplayText();
 
-        for(String line : lines){
-            canvas.drawText(line, ox, offset, textPaint);
-            offset += textHeight;
+        if(displayText != null) {
+            String[] lines = displayText.split("\n");
+            int l2 = lines.length / 2;
+            float textHeight = 21f;
+            float offset = oy + (lines.length == 1 ? textHeight / 2 : 0);
+
+            for (String line : lines) {
+                canvas.drawText(line, ox, offset, textPaint);
+                offset += textHeight;
+            }
         }
     }
 
-    private String getDisplayText() {
+    protected String getDisplayText() {
 
         if(isAdjustable){
             float val = targetValue - 0.25f;
@@ -327,13 +338,13 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
     }
 
-    public void onClick() {
-		state = !state;
-		
-		getParent().graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
-		getParent().graphNodeListener.onEvent(getParent().graphNodeEvent, this);
-		
-	}
+//    public void onClick() {
+//		state = !state;
+//
+//		getParent().graphNodeEvent.setEvent(GraphNodeEvent.CLICK);
+//		getParent().graphNodeListener.onEvent(getParent().graphNodeEvent, this);
+//
+//	}
 
 	public void updateParentLine(ChildEnabledGraphNode roomNode) {
 		parentLine.update(this, roomNode);
@@ -404,7 +415,6 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
             } else if(isMoving && fingerId == finger){
                 moveTo(x, y);
             }
-
         }
         return isPressed;
     }
@@ -420,6 +430,9 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
                 toggleSwitch();
                 performHapticFeedback(10);
 
+            } else if(type == TYPE_GROUPED){
+                childrenVisible = !childrenVisible;
+                performHapticFeedback(10);
             }
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.UP) {
@@ -471,9 +484,8 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
             addConnection(graphNode);
 
-
-            ActivityEvent activityEvent = new ActivityEvent(ActivityEvent.CONNECTION_ADDED);
-            getParent().sendActivityEvent(activityEvent);
+            ActivityEvent event = new ActivityEvent(ActivityEvent.CONNECTION_ADDED);
+            activityEventListener.onActivityEvent(event);
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVED_OUT_OF_NODE) {
             Log.d(TAG, this + " MOVED OUT!");

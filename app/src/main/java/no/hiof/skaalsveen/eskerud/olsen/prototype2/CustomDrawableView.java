@@ -459,6 +459,10 @@ public class CustomDrawableView extends CustomSurfaceView implements
 		} else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE) {
 			// bgColor = Color.GREEN;
 
+
+		}else if (graphNodeEvent.getEvent() == GraphNodeEvent.UP) {
+
+
 		} else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_START) {
             // bgColor = Color.GREEN;
             slotManager.remove((RoomNode) node, null);
@@ -481,6 +485,12 @@ public class CustomDrawableView extends CustomSurfaceView implements
 //                }
             }
 
+            String name = node.getName();
+            if(name != null && name.equals("WC")){
+                if(node.getDistanceTo(0,0) < 50){
+                    slotManager.toggleDebugging();
+                }
+            }
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.LONG_PRESS) {
 			// bgColor = Color.RED;
@@ -498,13 +508,6 @@ public class CustomDrawableView extends CustomSurfaceView implements
 	public ArrayList<RoomNode> getRoomNodes() {
 		return roomNodes;
 	}
-
-    @Override
-    public boolean performHapticFeedback(int feedbackConstant) {
-        boolean res = super.performHapticFeedback(feedbackConstant);
-
-        return res;
-    }
 
     @Override
     public void highlightOtherChildren(GraphNode node, int alpha) {
