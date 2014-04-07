@@ -17,6 +17,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 
@@ -40,6 +41,9 @@ public class CustomDrawableView extends CustomSurfaceView implements
 	private ServerEventListener serverEventListener;
 	private boolean childPress = false;
     private boolean graphChanged = true;
+    private int densityDpi = 0;
+//    private float[][] lastXY;
+//    private Paint paint;
 
 
     public CustomDrawableView(Context context) {
@@ -70,6 +74,7 @@ public class CustomDrawableView extends CustomSurfaceView implements
 		rooms = labels.length;
 		fingerMap = new int[rooms];
 		lastMask = new int[rooms];
+
 
 	}
 
@@ -104,6 +109,7 @@ public class CustomDrawableView extends CustomSurfaceView implements
 		
 		
 	}
+
 
 	@Override
 	public void stopGame() {
@@ -161,7 +167,6 @@ public class CustomDrawableView extends CustomSurfaceView implements
 								(int) event.getY(i));
 					}
 
-                    ;
 
 
 					RoomNode node = getFingerNode(pi);
@@ -182,12 +187,16 @@ public class CustomDrawableView extends CustomSurfaceView implements
 							node.handleTouch(true);
 							mask[pi] = 1;
                             roomsInMotion++;
+//                            Log.d(TAG," --- move");
+
 						} else if(slotManager.manageTouch(node, event.getX(i), event.getY(i), pi)){
                             childrenManaged = true;
                             mask[pi] = 1;
+//                            Log.d(TAG," --- child");
                         }
                         else {
 
+//                            Log.d(TAG," --- gesture");
 							gesturePositionsSumX += fingerPositionsX[i];
 							gesturePositionsSumY += fingerPositionsY[i];
 							gestureFingers++;
@@ -201,9 +210,16 @@ public class CustomDrawableView extends CustomSurfaceView implements
 //                            }
 
 						}
-					}
+					} else{
+                        Log.e(TAG, "Node null onTouchEvent");
+                    }
 				}
+
+
 			}
+
+//            lastXY = new float[][]{fingerPositionsX, fingerPositionsY};
+
 
 			if (gestureFingers == fingersActive && fingersActive > 0) {
 				// bgColor = Color.GRAY;
@@ -345,9 +361,19 @@ public class CustomDrawableView extends CustomSurfaceView implements
 			}
 		}
 
-		
-		for (int i = 0; i < rooms; i++)
-			roomNodes.get(i).draw(canvas);
+		for (int i = 0; i < rooms; i++) {
+            RoomNode roomNode = roomNodes.get(i);
+            roomNode.draw(canvas);
+        }
+
+//        if(lastXY != null && lastXY[0] != null) {
+//            for (int i = 0; i < lastXY[0].length; i++) {
+//                if(roomNodes!=null && roomNodes.size()>0){
+//                    paint = roomNodes.get(0).getPaint();
+//                }
+//                canvas.drawLine(0,0,lastXY[0][i],lastXY[1][i], paint);
+//            }
+//        }
 
 	}
 
@@ -401,6 +427,8 @@ public class CustomDrawableView extends CustomSurfaceView implements
 
         if (graphChanged) {
             graphChanged = false;
+
+
         }
 	}
 
@@ -447,6 +475,10 @@ public class CustomDrawableView extends CustomSurfaceView implements
             else{
                 //n2.place(roomNodes, width);
                 graphChanged = true;
+
+//                if(slotManager != null && roomNodes != null && slotManager.size() < 1){
+//                    setStartPositions(roomNodes);
+//                }
             }
 
 
@@ -469,17 +501,19 @@ public class CustomDrawableView extends CustomSurfaceView implements
 
     @Override
     public boolean performHapticFeedback(int feedbackConstant) {
-        return super.performHapticFeedback(feedbackConstant);
+        boolean res = super.performHapticFeedback(feedbackConstant);
+
+        return res;
     }
 
     @Override
     public void highlightOtherChildren(GraphNode node, int alpha) {
-        slotManager.setOtherChildrenAlpha(node, alpha);
+        slotManager.highlightOtherChildren(node, alpha);
     }
 
 
     @Override
-    public void onGraphChange(RoomNode node, boolean removed, RoomNode newNode) {
+    public void onGraphChange(RoomNode node, boolean removed, RoomNode newNode, SlotManager slotManager) {
 
         if(removed) {
 
@@ -489,10 +523,19 @@ public class CustomDrawableView extends CustomSurfaceView implements
             else{
                 node.requestUp(0);
             }
+            node.place(this.roomNodes, width);
 
-            node.place(roomNodes, width);
         }
         graphChanged = true;
     }
 
+    public int getDPI() {
+
+        if(densityDpi == 0){
+            DisplayMetrics metrics = getResources().getDisplayMetrics();
+            densityDpi = (int)(metrics.density * 160f);
+        }
+
+        return densityDpi;
+    }
 }

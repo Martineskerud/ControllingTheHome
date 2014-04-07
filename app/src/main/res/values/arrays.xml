@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="connection_types">
+        <item>Basic</item>
+        <item>Delayed</item>
+    </string-array>
+</resources>

@@ -3,11 +3,9 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2;
 import android.graphics.Canvas;
 import android.util.Log;
 
-import java.util.AbstractCollection;
 import java.util.ArrayList;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.DeviceNode;
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.GraphNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.RoomNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.Controller;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphChangeListener;
@@ -54,7 +52,7 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
             remove(outNode, newNode);
         }
         changed = true;
-        onGraphChangeListener.onGraphChange(newNode, false, newNode);
+        onGraphChangeListener.onGraphChange(newNode, false, newNode, this);
         newNode.setChildrenVisible(true);
 
         if(size() == 1 && newNode.getX() < width){
@@ -92,7 +90,7 @@ public class SlotManager extends ArrayList<RoomNode> implements Controller{
             node.setChildrenVisible(false);
             res = super.remove(node);
             changed = true;
-            onGraphChangeListener.onGraphChange(node, true, newNode);
+            onGraphChangeListener.onGraphChange(node, true, newNode, this);
         }
 
         return res;

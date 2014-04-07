@@ -7,7 +7,10 @@ import android.graphics.Paint.Align;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.ActivityEvent;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.CustomDrawableView;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
 
 public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
@@ -17,30 +20,41 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
     private static final int HIGH_ALPHA = 255;
     public static final int MAX_RADIUS = 75;
     private static final double MOVE_FOCUSED_NODE_THRESHOLD = MAX_RADIUS;
+    public static final float STANDARD_DPI = 160;
     private final Paint ghostPaint;
+    private final CustomDrawableView customDrawableView;
     private int[] childrenTouchMap;
     private Paint paint;
 	public float fx, fy;
 	private Paint textPaint;
-
 	private float extra_margin = 20;
-
     private long childrenVisibleTime;
     private int minimizedRadius = 50;
     private int requestUp;
     private float startX, startY;
-    private boolean ghost;
     private float ghostX, ghostY;
     private int alpha = 255;
     private int alternativeRadius = MAX_RADIUS;
     private int activeChildren2;
     private DeviceNode hoverChild;
     private int d1 = 0;
-    private boolean interactionDisabled;
 
-    public RoomNode(String name, Paint textPaint, HapticDevice hapticDevice) {
+    private boolean ghost;
+    private boolean isInteractable;
+
+    @Override
+    protected String getDebugInfo() {
+        String debugInfo = super.getDebugInfo();
+        debugInfo+= "\n isInteractable="+fromBoolean(isInteractable);
+        debugInfo+= "\n interactionDisabled="+fromBoolean(interactionDisabled);
+
+        return debugInfo;
+    }
+
+    public RoomNode(String name, Paint textPaint, CustomDrawableView hapticDevice) {
 		super(name, hapticDevice);
 
+        customDrawableView = hapticDevice;
 		this.ox = 0;
 		this.oy = 0;
 
@@ -63,8 +77,11 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 		textPaint.setColor(Color.BLACK);
 		textPaint.setTextAlign(Align.CENTER);
 
+
+
 		int textSize = 42;
 		int margin = 4;
+
 		do {
 
 			textPaint.setTextSize(textSize--);
@@ -73,37 +90,31 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 		
 		if(name.equals("Living room")){
             String[] devices = new String[]{"Light", "Fireplace", "TV"};
-            for(String dev : devices){
-                children.add(new DeviceNode(dev, this, textPaint));
-            }
-		}
+            createChildren(textPaint, devices);
+        }
         else if(name.equals("Kitchen")){
             String[] devices = new String[]{"Stove", "Oven", "Light", "Radio", "Dishwasher"};
-            for(String dev : devices){
-                children.add(new DeviceNode(dev, this, textPaint));
-            }
+            createChildren(textPaint, devices);
         }
         else if(name.equals("Hallway")){
             String[] devices = new String[]{"Floor\nheating", "Light"};
-            for(String dev : devices){
-                children.add(new DeviceNode(dev, this, textPaint));
-            }
+            createChildren(textPaint, devices);
         }
         else if(name.equals("WC")){
             String[] devices = new String[]{"Radio", "Light"};
-            for(String dev : devices){
-                children.add(new DeviceNode(dev, this, textPaint));
-            }
+            createChildren(textPaint, devices);
         }
         else if(name.equals("Bedroom")){
             String[] devices = new String[]{"Alarm\nClock", "Light"};
-            for(String dev : devices){
-                children.add(new DeviceNode(dev, this, textPaint));
-            }
+            createChildren(textPaint, devices);
         }
 
         childrenTouchMap = new int[children.size()];
 	}
+
+
+
+
 
     @Override
     protected boolean outsideThreshold(double deltaPosition) {
@@ -128,6 +139,15 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
             ty = ghostY;
         }
         else{
+            if(interactionDisabled){
+                if(!isInteractable){
+                    paint.setColor(Color.BLACK);
+                }
+                else {
+                    paint.setColor(Color.GRAY);
+                }
+            }
+
             canvas.drawCircle(ox, oy, radius, paint);
             tx = ox;
             ty = oy;
@@ -143,6 +163,10 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 				child.draw(canvas);
 			}
 		}
+
+
+        super.draw(canvas);
+
 	}
 
 	/**
@@ -153,7 +177,7 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 	public void update(long tpf) {
 		super.update(tpf);
 
-        radius = (childrenVisible ? alternativeRadius : minimizedRadius);
+        radius = getRadius();
 
 		paint.setColor(isActive ? Color.RED : Color.BLUE);
         childrenVisibleTime+=tpf;
@@ -185,11 +209,20 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 
 	}
 
+    @Override
+    public float getRadius() {
+
+        int dpi = customDrawableView.getDPI();
 
 
-    public float getChildRadius() {
-        return radius * 1.5f;
+        int res = childrenVisible ? alternativeRadius : minimizedRadius;
+        //setName("DPI("+res+" / "+STANDARD_DPI+"): "+ dpi);
+
+        return (dpi != 0 ? (res / STANDARD_DPI) * dpi : res);
     }
+
+
+
 
     @Override
     protected void onStartMove() {
@@ -224,21 +257,22 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 
 
 	public boolean trySet(float x, float y) {
+        isInteractable = false;
 
         d1 = 0;
         if(activeChildren2 > 0 || interactionDisabled){
+            isInteractable = false;
             return false;
 
         }
 
-		float distance = (float) Math.sqrt(Math.pow(x - ox, 2)
-				+ Math.pow(y - oy, 2));
-		
+//		float distance = (float) Math.sqrt(Math.pow(x - ox, 2)
+//				+ Math.pow(y - oy, 2));
 
 		//	Log.d(TAG, "distance = "+ distance+ "    ("+x+","+y+")("+ox+""+oy+")");
         saveCursor(x,y);
         double threshold = MOVE_FOCUSED_NODE_THRESHOLD;//getRadius() + extra_margin;
-        if (distance < threshold || isMovable) {
+        if (getDistanceTo(x,y) < threshold || isMovable) {
 
             if(isMovable){
 
@@ -257,16 +291,16 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
                 alpha = (int)((255/ threshold) * (threshold - distance2));
 
                 //alternativeRadius = minimizedRadius + (int) ((MAX_RADIUS-minimizedRadius)/threshold * (threshold - distance2));
-
+            } else if(!isMovable){
+                Log.e(TAG, "immovable object: "+this);
 
             }
 
-            //
-            return true;
+            isInteractable = true;
 		}
 
 
-		return false;
+		return isInteractable;
 	}
 
 
@@ -305,18 +339,24 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 	public void setChildrenVisible(boolean visible) {
 		childrenVisible = visible;
         childrenVisibleTime = 0;
+        connectionsVisible = visible;
 		
 		if(childrenVisible && children.size() > 0){
 			float step = (float) (2 * Math.PI / children.size());
 			float a = 0;
 			
 			for(DeviceNode child : children){
-				
+				child.connectionsVisible = true;
 				child.ox = (float) (ox + (radius+child.radius) * Math.sin(a));
 				child.oy = (float) (oy + (radius+child.radius) * Math.cos(a));
 				a += step;
 			}
 		}
+        else if (children != null && children.size() > 0){
+            for(DeviceNode child : children) {
+                child.connectionsVisible = false;
+            }
+        }
 	}
 
 	public void setRadius(float r) {
@@ -354,7 +394,7 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
             x1 = (float) (Math.random() * wr);
             x1 = subtractEdges(x1, w2);
         }
-
+        //isMovable = true;
         moveX(x1);
 
     }
@@ -464,17 +504,26 @@ public class RoomNode extends ChildEnabledGraphNode implements HapticDevice {
 //        return false;
 //    }
 
-    public void setRoomConnection(RoomNode parentB, ChildNode nodeA, ChildNode nodeB) {
-        addConnection(parentB);
-    }
 
 
-    public void disableInteraction(boolean movable) {
-        interactionDisabled = movable;
-    }
 
 
-    public void setPaintAlpha(int a) {
+
+    public void setAlpha(int a) {
         paint.setAlpha(a);
+
+
+    }
+
+    public void setName(String s) {
+        this.name = s;
+    }
+
+    public boolean sendActivityEvent(ActivityEvent activityEvent) {
+        return customDrawableView.getActivityEventListener().onActivityEvent(activityEvent);
+    }
+
+    public Paint getPaint() {
+        return paint;
     }
 }

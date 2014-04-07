@@ -19,14 +19,23 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
     private boolean isVisible;
 
     public BezierCurve(Paint paint) {
-        super(paint);
+        super(new Paint(paint));
+        setupPaint();
+    }
+
+    public void setupPaint(){
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeWidth(3.0f);
+        paint.setAntiAlias(true);
+        paint.setARGB(255, 200, 200, 200);
     }
 
     @Override
     public void update(T nodeA, U nodeB) {
 
-        RoomNode parentB = nodeB.getParent();
-        RoomNode parentA = nodeA.getParent();
+        ChildEnabledGraphNode parentB = nodeB.getParent();
+        ChildEnabledGraphNode parentA = nodeA.getParent();
 
 
         if(parentA != null && parentB != null){
@@ -89,11 +98,11 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
         double startR = (nodeA.getRadius()+STROKE_WITH)/len1;
         double stopR = (nodeB.getRadius()+STROKE_WITH)/len2;
 
-        startX += dx1*startR*1.1f;
-        startY += dy1*startR*1.1f;
+        startX += dx1*startR*1.2f;
+        startY += dy1*startR*1.2f;
 
-        stopX -= dx2*stopR;
-        stopY -= dy2*stopR;
+        stopX -= dx2*stopR*1.2f;
+        stopY -= dy2*stopR*1.2f;
 
     }
 
@@ -104,19 +113,20 @@ public class BezierCurve<T extends ChildNode, U extends ChildNode> extends Edge<
             return;
         }
         final Path path = new Path();
-        path.moveTo(startX, startY);
-        path.quadTo(middleX, middleY, stopX, stopY);
+        path.moveTo(stopX, stopY);
+        path.quadTo(middleX, middleY, startX, startY);
 
 
-        Paint paint = new Paint() {
-            {
-                setStyle(Style.STROKE);
-                setStrokeCap(Cap.ROUND);
-                setStrokeWidth(3.0f);
-                setAntiAlias(true);
-                setARGB(255,200,200,200);
-            }
-        };
+//        Paint paint = new Paint() {
+//            {
+//                setStyle(Style.STROKE);
+//                setStrokeCap(Cap.ROUND);
+//                setStrokeWidth(3.0f);
+//                setAntiAlias(true);
+//                setARGB(255,200,200,200);
+//            }
+//        };
+
         canvas.drawPath(path, paint);
 
         paint.setTextSize(20);

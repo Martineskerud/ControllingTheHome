@@ -49,6 +49,7 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
     private boolean isPressedOutside;
     protected HapticDevice hapticDevice;
     private boolean movingOutsideNode;
+    protected boolean connectionsVisible = false;
 
     public GraphNode(String name, HapticDevice hapticDevice) {
         this.name = name;
@@ -59,10 +60,36 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
         debugPaint = new Paint();
         debugPaint.setAntiAlias(true);
         debugPaint.setColor(Color.BLACK);
-        debugTextSize = 20;
+        debugTextSize = 10;
         debugPaint.setTextSize(debugTextSize);
 
         connections = new ArrayList<Connection>();
+    }
+
+    protected String getDebugInfo(){
+        String s = this + "\n(" + round(ox) + "," + round(oy) + " | " + round(x) + "," + round(y) + " R=" + round(getRadius()) + ")";
+        s+= "\n isMoving="+fromBoolean(isMoving);
+        s+= " isMovable="+fromBoolean(isMovable);
+        s+= "\n movingOutsideNode="+fromBoolean(movingOutsideNode);
+
+        s+= "\n isPressed="+fromBoolean(isPressed);
+        s+= " isLongPressing="+fromBoolean(isLongPressing);
+        s+= "\n isPressedOutside="+fromBoolean(isPressedOutside);
+
+        s+= "\ncursorX="+round(cursorX);
+        s+= " cursorY="+round(cursorY);
+
+        s+= "\nisActive="+fromBoolean(isActive);
+
+        return s;
+    }
+
+    protected String fromBoolean(boolean bool) {
+        return (bool ? "1" : "0");
+    }
+
+    protected int round(float d) {
+        return Math.round(d);
     }
 
     public boolean isMoving() {
@@ -85,7 +112,7 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
                 this.curve = new BezierCurve(debugPaint);
             }
             else if(node instanceof RoomNode){
-                this.curve = new Edge<GraphNode, GraphNode>(debugPaint);
+                this.curve = new Edge<GraphNode, GraphNode>(debugPaint, "Connection");
             }
         }
 
@@ -141,6 +168,7 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
             } else{ // finger up
                 isActive = false;
                 movingOutsideNode = false;
+                isPressedOutside = false;
 
                 long deltaTime = System.currentTimeMillis() - pressedTimestamp;
                 double deltaPosition = Math.sqrt(Math.pow((ox - pressedPositionX), 2)
@@ -175,6 +203,9 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
                 isLongPressing = false;
                 isPressedOutside = false;
                 onFingerUp();
+
+                graphNodeEvent.setEvent(GraphNodeEvent.UP);
+                graphNodeListener.onEvent(graphNodeEvent, this);
             }
         }
 
@@ -192,7 +223,7 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
 
     }
 
-    public void draw(Canvas canvas){
+    protected void draw(Canvas canvas){
 
         if(debugPosition) {
             canvas.drawText("ox: " + Math.floor(ox), ox + radius, oy - 2 * debugTextSize, debugPaint);
@@ -201,15 +232,36 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
             canvas.drawText("y: " + Math.floor(pressedPositionY), ox + radius, oy + 2 * debugTextSize, debugPaint);
         }
 
+        if(getDistanceTo(cursorX, cursorY) < 3*getRadius()) {
+            drawDebugInfo(canvas);
+        }
+
         drawConnections(canvas);
 
     }
 
+    private void drawDebugInfo(Canvas canvas) {
+        String[] splitInfo = getDebugInfo().split("\n");
+        float lineOffset = -(splitInfo.length / 2) * debugTextSize;
+        for(String line : splitInfo){
+            canvas.drawText(line, ox + (radius*1.2f), oy + lineOffset, debugPaint);
+            lineOffset += debugTextSize;
+        }
+    }
+
+
     private void drawConnections(Canvas canvas) {
-        if(connections != null && connections.size() > 0){
-            for(Connection connection: connections){
-                connection.draw(canvas);
+
+        if(connectionsVisible) {
+            int c = 0;
+            if (connections != null && connections.size() > 0) {
+                for (Connection connection : connections) {
+                    connection.draw(canvas);
+                    c++;
+                }
             }
+
+            //canvas.drawText("C: " + c, ox, oy + 3 * debugTextSize, debugPaint);
         }
     }
 
@@ -289,9 +341,10 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
 
     private void updateConnections(long tpf) {
         if(connections != null && connections.size() > 0){
-            for(Connection connection: connections){
-
-                connection.update(tpf);
+            if(connectionsVisible){
+                for(Connection connection: connections){
+                    connection.update(tpf);
+                }
             }
         }
     }
@@ -382,6 +435,7 @@ public abstract class GraphNode implements PhysicalObject, HapticDevice {
     public abstract void setPlacement(float[] po);
 
     public float getRadius() {
+
         return radius;
     }
 

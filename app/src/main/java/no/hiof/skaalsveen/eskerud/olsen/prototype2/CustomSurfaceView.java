@@ -4,7 +4,6 @@ import java.util.ArrayList;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.GraphNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.RoomNode;
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.GraphChangeListener;
 
 import android.content.Context;
 import android.util.AttributeSet;
@@ -22,8 +21,9 @@ public abstract class CustomSurfaceView extends SurfaceView implements
     protected ChildAwareSlotManager slotManager;
 
 	private static final String TAG = "CustomSurfaceView";
+    private ActivityEventListener activityEventListener;
 
-	public CustomSurfaceView(Context context) {
+    public CustomSurfaceView(Context context) {
 		super(context);
         init();
 	}
@@ -67,7 +67,7 @@ public abstract class CustomSurfaceView extends SurfaceView implements
 		Log.d(TAG, "Surface: "+ width+ "x" + height);
 
         ArrayList<RoomNode> roomNodes = getRoomNodes();
-        GraphNode.placeInCircle((width / 2), (height / 2), height / 4, roomNodes);
+        setStartPositions(roomNodes);
 
         if(roomNodes != null && roomNodes.size() > 0) {
 
@@ -83,6 +83,11 @@ public abstract class CustomSurfaceView extends SurfaceView implements
         }
 	}
 
+    protected void setStartPositions(ArrayList<RoomNode> roomNodes) {
+        GraphNode.placeInCircle((width / 2), (height / 2), height / 6f, roomNodes);
+    }
+
+
     protected abstract void createSlotManager(int width, int height);
 
     public abstract void setupNodes();
@@ -92,4 +97,12 @@ public abstract class CustomSurfaceView extends SurfaceView implements
 	public abstract void stopGame();
 
 	public abstract ArrayList<RoomNode> getRoomNodes();
+
+    public void setActivityEventListener(ActivityEventListener activityEventListener) {
+        this.activityEventListener = activityEventListener;
+    }
+
+    public ActivityEventListener getActivityEventListener() {
+        return activityEventListener;
+    }
 }

@@ -1,7 +1,5 @@
 package no.hiof.skaalsveen.eskerud.olsen.prototype2;
 
-import android.util.Log;
-
 import java.util.ArrayList;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.DeviceNode;
@@ -121,9 +119,15 @@ public class ChildAwareSlotManager extends SlotManager {
         handleChildrenNotActive();
     }
 
-    public void setOtherChildrenAlpha(GraphNode node, int a) {
+    public void highlightOtherChildren(GraphNode node, int a) {
         for(RoomNode n : this){
-            n.setPaintAlpha(a);
+            n.setAlpha(a);
+        }
+        ArrayList<DeviceNode> ch = getAllChildren();
+        if(ch != null && ch.size() > 0){
+            for(DeviceNode child : ch){
+                child.highlight((a > 125 ? false : true));
+            }
         }
     }
 }

@@ -19,6 +19,7 @@ public class GraphNodeEvent {
     public static final int MOVED_OUT_OF_NODE = 9;
     public static final int MOVING_OUTSIDE_OF_NODE = 10;
     public static final int MOVE_UP_FROM_OUTSIDE_OF_NODE = 11;
+    public static final int UP = 12;
 
     private int action;
 
