@@ -256,11 +256,15 @@ public abstract class GraphNode implements PhysicalObject {
 
     private void drawDebugInfo(Canvas canvas) {
         String[] splitInfo = getDebugInfo().split("\n");
-        float lineOffset = -(splitInfo.length / 2) * debugTextSize;
+        float lineOffset = getDebugLineOffset(splitInfo);
         for(String line : splitInfo){
             canvas.drawText(line, ox + (radius*1.2f), oy + lineOffset, debugPaint);
             lineOffset += debugTextSize;
         }
+    }
+
+    protected int getDebugLineOffset(String[] splitInfo) {
+        return -(splitInfo.length / 2) * debugTextSize;
     }
 
 
@@ -453,7 +457,7 @@ public abstract class GraphNode implements PhysicalObject {
     }
 
     public void moveTo(float x, float y) {
-        Log.d(TAG, "Moving " + this + " to (" + x + ", " + y + ")");
+        //Log.d(TAG, "Moving " + this + " to (" + x + ", " + y + ")");
         moveX(x);
         moveY(y);
     }
@@ -497,7 +501,7 @@ public abstract class GraphNode implements PhysicalObject {
 
         for (GraphNode node : nodes) {
 
-            if(!node.isActive){
+            if(!node.isActive && !node.isMoving){
                 float radius2 = radius + node.getRadius();
 
                 float rx = (float) (radius2 * Math.sin(angleOffset));
@@ -512,7 +516,15 @@ public abstract class GraphNode implements PhysicalObject {
     }
 
     public boolean collidesWith(GraphNode node) {
-        return(node != null && getDistanceTo(node) < getRadius() + node.getRadius());
+
+        boolean b1 = getDistanceTo(node) < getRadius() + node.getRadius();
+        boolean b3 = node != null;
+
+        Log.d(TAG, (b1? "B1":"!B1")+"::"+(b3 ? "B3": "!B3"));
+        Log.d(TAG, getDistanceTo(node)+":::" + getRadius() + " : " + node.getRadius());
+
+
+        return (b3 && b1);
     }
 
     public void addConnection(GraphNode node) {
@@ -528,11 +540,35 @@ public abstract class GraphNode implements PhysicalObject {
     public boolean performHapticFeedback(int time) {
         if(activityEventListener != null){
 
-            ActivityEvent event = new ActivityEvent(ActivityEvent.PERFORM_HAPTIC_FEEDBACK);
+            ActivityEvent event = new ActivityEvent<Integer>(ActivityEvent.PERFORM_HAPTIC_FEEDBACK);
             event.addValue(time);
             return activityEventListener.onActivityEvent(event);
         }
         return false;
+    }
+
+    public void reportInteraction(GraphNodeEvent graphNodeEvent, GraphNode graphNode) {
+
+        int[] validEvents = new int[]{
+                GraphNodeEvent.CLICK,
+                GraphNodeEvent.MOVE_START,
+                GraphNodeEvent.MOVE_UP,
+                GraphNodeEvent.LONG_PRESS,
+                GraphNodeEvent.MOVED_OUT_OF_NODE,
+                GraphNodeEvent.UP
+        };
+
+        for(int state : validEvents){
+            if(graphNodeEvent.getEvent() == state){
+
+                ActivityEvent event = new ActivityEvent<String>(ActivityEvent.REPORT_INTERACTION);
+                event.addValue("{'node': '" + graphNode + "', 'event': " + graphNodeEvent + "}");
+                activityEventListener.onActivityEvent(event);
+                break;
+
+            }
+        }
+
     }
 
 }

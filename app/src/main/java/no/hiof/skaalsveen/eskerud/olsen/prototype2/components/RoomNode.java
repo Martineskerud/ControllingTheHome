@@ -87,11 +87,11 @@ public class RoomNode extends ChildEnabledGraphNode {
             createChildren(textPaint, devices);
         }
         else if(name.equals("Kitchen")){
-            String[] devices = new String[]{"Stove", "Oven", "Light", "Radio", "Dishwasher"};
+            String[] devices = new String[]{"Stove", "Oven", "Light", "Coffee-\nmaker", "Dishwasher"};
             createChildren(textPaint, devices);
         }
         else if(name.equals("Hallway")){
-            String[] devices = new String[]{"Floor\nheating", "Light"};
+            String[] devices = new String[]{"Floor\nheating", "Light", "Door\nlock"};
             createChildren(textPaint, devices);
         }
         else if(name.equals("WC")){
@@ -306,28 +306,7 @@ public class RoomNode extends ChildEnabledGraphNode {
 		return fingers;
 	}
 
-	public void setChildrenVisible(boolean visible) {
-		childrenVisible = visible;
-        childrenVisibleTime = 0;
-        connectionsVisible = visible;
-		
-		if(childrenVisible && children.size() > 0){
-			float step = (float) (2 * Math.PI / children.size());
-			float a = 0;
-			
-			for(DeviceNode child : children){
-				child.connectionsVisible = true;
-				child.ox = (float) (ox + (radius+child.radius) * Math.sin(a));
-				child.oy = (float) (oy + (radius+child.radius) * Math.cos(a));
-				a += step;
-			}
-		}
-        else if (children != null && children.size() > 0){
-            for(DeviceNode child : children) {
-                child.connectionsVisible = false;
-            }
-        }
-	}
+
 
 	public void setRadius(float r) {
 		radius = r;

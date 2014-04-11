@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="connection_types">
-        <item>Basic</item>
-        <item>Delayed</item>
+        <item>Turn on</item>
+        <item>Turn off</item>
     </string-array>
 </resources>

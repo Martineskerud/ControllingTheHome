@@ -443,6 +443,8 @@ public class CustomDrawableView extends CustomSurfaceView implements
     @Override
 	public void onEvent(GraphNodeEvent graphNodeEvent, GraphNode node) {
 
+        node.reportInteraction(graphNodeEvent, node);
+
 		if (graphNodeEvent.getEvent() == GraphNodeEvent.CLICK) {
 			// bgColor = Color.BLACK;
 

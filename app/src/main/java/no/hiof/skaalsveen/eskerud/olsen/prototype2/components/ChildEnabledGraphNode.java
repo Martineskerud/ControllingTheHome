@@ -3,18 +3,21 @@ package no.hiof.skaalsveen.eskerud.olsen.prototype2.components;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.ActivityEvent;
+import no.hiof.skaalsveen.eskerud.olsen.prototype2.GraphNodeEvent;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.HapticDevice;
 
 
 public abstract class ChildEnabledGraphNode extends GraphNode implements HapticDevice{
 
-	public boolean childrenVisible = false;
+    private static final String TAG = "ChildEnabledGraphNode";
+    public boolean childrenVisible = false;
 	public ArrayList<DeviceNode> children = new ArrayList<DeviceNode>();
 
     protected HashMap<String, Integer> typeHashMap;
@@ -97,10 +100,36 @@ public abstract class ChildEnabledGraphNode extends GraphNode implements HapticD
                 }
             }
 
-
             manageCirclePlacement();
+
         }
 
+    }
+
+    public void setChildrenVisible(boolean visible) {
+        childrenVisible = visible;
+        childrenVisibleTime = 0;
+        connectionsVisible = visible;
+
+        if(childrenVisible && children.size() > 0){
+
+            manageCirclePlacement();
+
+            float step = (float) (2 * Math.PI / children.size());
+            float a = 0;
+
+            for(DeviceNode child : children){
+                child.connectionsVisible = true;
+                child.ox = (float) (ox + (radius+child.radius) * Math.sin(a));
+                child.oy = (float) (oy + (radius+child.radius) * Math.cos(a));
+                a += step;
+            }
+        }
+        else if (children != null && children.size() > 0){
+            for(DeviceNode child : children) {
+                child.connectionsVisible = false;
+            }
+        }
     }
 
     protected void manageCirclePlacement() {
@@ -155,6 +184,7 @@ public abstract class ChildEnabledGraphNode extends GraphNode implements HapticD
     public void setRoomConnection(ChildEnabledGraphNode parentB, ChildNode nodeA, ChildNode nodeB) {
         addConnection(parentB);
     }
+
 
 
 }

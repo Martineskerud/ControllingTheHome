@@ -4,7 +4,7 @@ public class GraphNodeEvent {
 
 	public static final long LONG_PRESS_THRESHOLD = 400;
 	public static final long LONG_PRESS_OVERKILL = 10000;
-	public static final double MOVE_ON_CLICK_THRESHOLD = 20;
+	public static final double MOVE_ON_CLICK_THRESHOLD = 50;
 	
 	public static final int CLICK = 1;
 	public static final int LONG_PRESS = 2;
@@ -22,17 +22,22 @@ public class GraphNodeEvent {
     public static final int UP = 12;
 
     private int action;
+    private long timestamp;
 
-	public GraphNodeEvent() {
+    public GraphNodeEvent() {
 		
 	}
 
 	public void setEvent(int event) {
 		action = event;
-		
+		timestamp = System.currentTimeMillis();
 	}
 	public int getEvent(){
 		return action;
 	}
-	
+
+    @Override
+    public String toString() {
+        return "{'action':"+action+", 'timestamp':"+(timestamp/1000)+"}";
+    }
 }

@@ -1,6 +1,9 @@
 package no.hiof.skaalsveen.eskerud.olsen.prototype2;
 
+import android.util.Log;
+
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.DeviceNode;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.components.GraphNode;
@@ -112,15 +115,19 @@ public class ChildAwareSlotManager extends SlotManager {
         if (children != null && children.size() > 0) {
 
             int i = 0;
-            for(DeviceNode child : children){
-                if(child.isHoveredOver()){
-                    hoverChild = child;
+            try {
+                for (DeviceNode child : children) {
+                    if (child.isHoveredOver()) {
+                        hoverChild = child;
+                    }
+                    i++;
                 }
-                i++;
-            }
 
-            for (DeviceNode child : children) {
-                child.handleNoInteraction(hoverChild);
+                for (DeviceNode child : children) {
+                    child.handleNoInteraction(hoverChild);
+                }
+            } catch (ConcurrentModificationException e){
+                Log.e(TAG, "Concurrent fuckup!");
             }
         }
     }

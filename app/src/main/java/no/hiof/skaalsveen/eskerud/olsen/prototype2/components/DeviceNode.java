@@ -353,7 +353,13 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
     @Override
     public String toString() {
 
-        return "DeviceNode[" + name + "]";
+        ChildEnabledGraphNode p = getParent();
+        String pn = "";
+        if(p instanceof DeviceNode){
+            pn += ((DeviceNode) p).getParent().name+"->";
+        }
+        pn += p.name;
+        return "DeviceNode["+ pn+"->" + name + "]";
     }
 
 
@@ -421,8 +427,14 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
 
     @Override
+    protected int getDebugLineOffset(String[] splitInfo) {
+        return super.getDebugLineOffset(splitInfo) * (isHoveredOverWithOtherNode ? 3 : 1);
+    }
+
+    @Override
     public void onEvent(GraphNodeEvent graphNodeEvent, GraphNode graphNode) {
 
+        reportInteraction(graphNodeEvent, graphNode);
 
         if (graphNodeEvent.getEvent() == GraphNodeEvent.CLICK) {
             Log.d(TAG, this+" CLICK!");
@@ -443,7 +455,7 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 //            }
 
         }else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE) {
-            Log.d(TAG, this+" MOVE!");
+            //Log.d(TAG, this+" MOVE!");
 //            highlightOtherChildren(this, 100);
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVE_START) {
@@ -457,11 +469,15 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
             moveDisabled = true;
             if(hoverChild != null){
+                Log.d(TAG, "hover child : "+ hoverChild);
                 if(collidesWith(hoverChild)) {
                     Log.d(TAG, "Dropped " + this + " in " + hoverChild);
 
                     graphNodeEvent.setEvent(GraphNodeEvent.DROPPED);
                     graphNodeListener.onEvent(graphNodeEvent, hoverChild);
+                }
+                else{
+                    Log.d(TAG, "does not collide with "+ graphNode);
                 }
                 hoverChild = null;
             }
@@ -484,7 +500,7 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
 
             addConnection(graphNode);
 
-            ActivityEvent event = new ActivityEvent(ActivityEvent.CONNECTION_ADDED);
+            ActivityEvent event = new ActivityEvent<Integer>(ActivityEvent.CONNECTION_ADDED);
             activityEventListener.onActivityEvent(event);
 
         } else if (graphNodeEvent.getEvent() == GraphNodeEvent.MOVED_OUT_OF_NODE) {
@@ -553,6 +569,8 @@ public class DeviceNode extends ChildNode implements GraphNodeListener {
         }
 
     }
+
+
 
     private void enableDrag() {
         performHapticFeedback(10);

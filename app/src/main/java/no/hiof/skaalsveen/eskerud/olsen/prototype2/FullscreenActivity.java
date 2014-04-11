@@ -13,7 +13,6 @@ import android.view.Window;
 
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ActivityEventListener;
 import no.hiof.skaalsveen.eskerud.olsen.prototype2.i.ServerEventListener;
-import no.hiof.skaalsveen.eskerud.olsen.prototype2.networking.ServerConnection;
 
 
 public class FullscreenActivity extends Activity implements ServerEventListener, ActivityEventListener {
@@ -40,9 +39,10 @@ public class FullscreenActivity extends Activity implements ServerEventListener,
 		
 		if(!awaitingCallback){
 			awaitingCallback = true;
-			Intent intent = new Intent(this, ServerConnection.class);
-			intent.putExtra(ServerConnection.MESSAGE, message);
-			startService(intent);
+
+            Log.d(TAG, "PYTHON!!!!");
+			pushMessage(message, ServerConnection.PYTHON);
+
 		}
 	}
 	
@@ -64,22 +64,28 @@ public class FullscreenActivity extends Activity implements ServerEventListener,
 	}
 
     public void showDialog(){
-        // 1. Instantiate an AlertDialog.Builder with its constructor
-        AlertDialog.Builder builder = new AlertDialog.Builder(FullscreenActivity.this);
 
-        // 2. Chain together various setter methods to set the dialog characteristics
-        builder.setTitle("Select connection type")
-                .setItems(R.array.connection_types, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // The 'which' argument contains the index position
-                        // of the selected item
-                    }
-                });
+        try {
+            // 1. Instantiate an AlertDialog.Builder with its constructor
+            AlertDialog.Builder builder = new AlertDialog.Builder(FullscreenActivity.this);
 
-        // 3. Get the AlertDialog from create()
-        AlertDialog dialog = builder.create();
+            // 2. Chain together various setter methods to set the dialog characteristics
+            builder.setTitle("Select connection type")
+                    .setItems(R.array.connection_types, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            // The 'which' argument contains the index position
+                            // of the selected item
+                        }
+                    });
 
-        dialog.show();
+            // 3. Get the AlertDialog from create()
+            AlertDialog dialog = builder.create();
+
+            dialog.show();
+        }catch (Exception e){
+            Log.e(TAG, "Shits went down!!!");
+        }
+
     }
 
     private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
@@ -100,15 +106,35 @@ public class FullscreenActivity extends Activity implements ServerEventListener,
     @Override
     public boolean onActivityEvent(ActivityEvent event) {
 
+        //Log.d(TAG, "onActivityEvent");
+
         if(event.getType() == ActivityEvent.CONNECTION_ADDED){
             Log.d(TAG, "Event. Showing dialog");
             showDialog();
 
         } else if(event.getType() == ActivityEvent.PERFORM_HAPTIC_FEEDBACK){
-            Log.d(TAG, "BZZZ");
-            surface.performHapticFeedback(event.getValue());
+            //Log.d(TAG, "BZZZ");
+            ActivityEvent<Integer> e = event;
+            surface.performHapticFeedback(e.getValue());
+
+
+        } else if(event.getType() == ActivityEvent.REPORT_INTERACTION){
+
+            ActivityEvent<String> e = event;
+            pushMessage(e.getValue(), ServerConnection.HTTP);
+            //Log.d(TAG, "HTTP!!!!");
+
         }
 
         return true;
+    }
+
+    private void pushMessage(String message, int con) {
+
+        Intent intent = new Intent(this, ServerConnection.class);
+        intent.putExtra(ServerConnection.MESSAGE, message);
+        intent.putExtra(ServerConnection.CONNECTION_TYPE, con);
+        startService(intent);
+
     }
 }
