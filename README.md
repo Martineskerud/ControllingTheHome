@@ -1,7 +1,7 @@
 (For information about this project on GitHub, see https://github.com/anskaal/MobAppPrototype2 )
 
-MobAppPrototype2
-================
+ControllingTheHome
+==================
 
 A high-fidelity prototype developed from participatory design and user tests
 in Mobile Applications at Østfold University College. 
