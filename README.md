@@ -1,4 +1,4 @@
-(For information about this project on GitHub, see https://github.com/anskaal/MobAppPrototype2 )
+(For information about this project on GitHub, see https://github.com/anskaal/ControllingTheHome )
 
 ControllingTheHome
 ==================
